@@ -1,9 +1,29 @@
+class State{
+	constructor(value, depth) {
+		this.value = value;
+		this.depth = depth;
+		this.length = this.value.length;
+
+		for(let i = 0; i < this.length; i++){
+			this[i] = value[i];
+		}
+	}
+
+	static newStates(arrValues, depth){
+		let arr = [];
+		arrValues.forEach(function(value){
+			arr.push(new State(value, depth+1));
+		});
+		return arr;
+	}
+}
+
 const memoryLimit = 2000;
 const maxSteps = 5000;
 
 //const initialState = [3, 1, 0];
 //const initialState = [1, 0, 3, 2];
-//const initialState = [1, 4, 0, 3, 2];
+const initialState = [1, 4, 0, 3, 2];
 //const initialState = [1, 1, 0, 3, 2];
 
 
@@ -163,6 +183,69 @@ function dfs(start, goalFunction) {
 			break;
 		}
 
+	}
+
+	printResult("DFS", finalState, steps);
+
+	return finalState;
+}
+
+function iter_depth_dfs(start, goalFunction) {
+	let maxDepth = 0;
+	let depthDelta = 3;
+
+	let stack = []; // define an empty array
+	stack.push(new State(start, 0));
+	let steps = 0; // step counter
+	let finalState = null; // to store the finalState if found
+//	stack.length // depth of the stack
+//	var curState = stack.pop(); // get the LAST element out of the array
+//	printState(curState, stack);
+	let visited = [];
+
+	log("Current maxdepth " + maxDepth);
+	outer: while(stack.length > 0) {
+		let offset = 0;
+		let isModified = false;
+		for (let i = stack.length -1; i >= 0; i--) {
+			if (stack[i].depth <= maxDepth) {
+				isModified = true;
+
+				steps++;
+				if (steps > maxSteps) {
+					log("Maximal steps reached!");
+					break outer;
+				}
+
+				let curState = stack.splice(i, 1)[0];
+
+				visited.push(curState.value);
+				log(steps + ". step");
+				log("Current state processed: [" + curState.value + "] - depth: " + curState.depth);
+
+				if (goalFunction(curState.value)) {
+					finalState = curState.value;
+					break outer;
+				}
+				let newStates = State.newStates(stateTransition(curState.value), curState.depth);
+				for (let j = 0; j < newStates.length; j++) {
+					if (!isMember(newStates[j].value, visited) && !isMember(newStates[j].value, stack)) {
+						stack.splice(stack.length-offset, 0, newStates[j]);
+						offset++;
+					}
+				}
+
+				if (stack.length > memoryLimit) {
+					log("Queue too long");
+					break outer;
+				}
+			continue outer;
+ 			}
+		}
+		if (!isModified) {
+			maxDepth += depthDelta;
+			log("Current maxdepth " + maxDepth);
+		}
 	}
 
 	printResult("DFS", finalState, steps);
