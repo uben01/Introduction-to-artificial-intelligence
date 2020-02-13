@@ -1,0 +1,140 @@
+const memoryLimit = 2000;
+const maxSteps = 5000;
+
+//const initialState = [3, 1, 0];
+//const initialState = [1, 0, 3, 2];
+const initialState = [1, 4, 0, 3, 2];
+//const initialState = [1, 1, 0, 3, 2];
+
+
+function log(message) {
+	if (typeof document !== "undefined")
+		document.getElementById("results").value = document.getElementById("results").value + "\n" + message;
+	else 
+		console.log(message);
+}
+
+function goal(state) {
+	var inversions = 0;
+	for (var i=1; i<state.length; i++) {
+		if (!(state[i-1] < state[i])) {
+			inversions++;
+		}
+	}
+	return inversions === 0;
+}
+
+function stateTransition(state) {
+	var newStates = [];
+	for (var i=0; i<state.length-1; i++) {
+		for (var j=i+1; j<state.length; j++) {
+			var newState = [];
+			for (var k=0; k<state.length; k++) {
+				newState[k] = state[k];
+			}
+			newState[i] = state[j];
+			newState[j] = state[i];
+			newStates.push(newState);
+		}
+	}
+	return newStates;
+}
+
+function equalStates(state1, state2) {
+	for (var i=0; i<state1.length; i++) {
+		if (state1[i] !== state2[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+function isMember(state, list) {
+	for (var i=0; i<list.length; i++) {
+		if (equalStates(list[i], state)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function shuffle(list) {
+	for (var i = list.length - 1; i > 0; i--) {
+		var j = Math.floor(Math.random() * (i + 1));
+		var temp = list[i];
+		list[i] = list[j];
+		list[j] = temp;
+	}
+	return list;
+}
+
+function printState(state, openList) {
+	log("Processing state: [" + state + "]; length of fringe: " + openList.length);
+}
+
+function printResult(method, finalState, steps) {
+	if (finalState) {
+		log(method + ": Final state [" + finalState + "] found in " + steps + " steps.");
+	} else {
+		log(method + ": Could not find a solution.");
+	}
+}
+
+
+function bfs(start, goalFunction) {
+	var queue = []; // define an empty array
+	queue.push(start); // insert an element at the end of the array
+	var steps = 0; // step counter
+	var finalState = null; // for storing the finalState if found
+//	queue.length // length of the queue
+//	var curState = queue.shift(); // take the FIRST element out of the array
+//	goalFunction(curState) // only returns true if curState satisfies the goal function
+	var visisted = [];
+	while(queue.length > 0){
+		steps++;
+		if(steps > maxSteps){
+			log("Maximal steps reached!");
+			break;
+		}
+		var curState = queue.shift();
+		visisted.push(curState);
+		log(steps + ". step");
+
+		if(goalFunction(curState)){
+			finalState = curState;
+			break;
+		}
+
+		var newStates = stateTransition(curState);
+		for(var i = 0; i < newStates.length; i++){
+			if(!isMember(newStates[i], visisted) && ! isMember(newStates[i], queue)){
+				queue.push(newStates[i]);
+			}
+		}
+
+		if(queue.length > memoryLimit){
+			log("Queue too long");
+				break;
+		}
+	}
+
+
+	printResult("BFS", finalState, steps);
+
+	return finalState;
+}
+
+function dfs(start, goalFunction) {
+	var stack = []; // define an empty array
+	stack.push(start);
+	var steps = 0; // step counter
+	var finalState = null; // to store the finalState if found
+//	stack.length // depth of the stack
+//	var curState = stack.pop(); // get the LAST element out of the array
+//	printState(curState, stack);
+
+
+	printResult("DFS", finalState, steps);
+
+	return finalState;
+}
