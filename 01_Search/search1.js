@@ -3,7 +3,7 @@ const maxSteps = 5000;
 
 //const initialState = [3, 1, 0];
 //const initialState = [1, 0, 3, 2];
-const initialState = [1, 4, 0, 3, 2];
+//const initialState = [1, 4, 0, 3, 2];
 //const initialState = [1, 1, 0, 3, 2];
 
 
@@ -82,32 +82,33 @@ function printResult(method, finalState, steps) {
 
 
 function bfs(start, goalFunction) {
-	var queue = []; // define an empty array
+	let queue = []; // define an empty array
 	queue.push(start); // insert an element at the end of the array
-	var steps = 0; // step counter
-	var finalState = null; // for storing the finalState if found
+	let steps = 0; // step counter
+	let finalState = null; // for storing the finalState if found
 //	queue.length // length of the queue
 //	var curState = queue.shift(); // take the FIRST element out of the array
 //	goalFunction(curState) // only returns true if curState satisfies the goal function
-	var visisted = [];
+	let visited = [];
 	while(queue.length > 0){
 		steps++;
 		if(steps > maxSteps){
 			log("Maximal steps reached!");
 			break;
 		}
-		var curState = queue.shift();
-		visisted.push(curState);
+		let curState = queue.shift();
+		visited.push(curState);
 		log(steps + ". step");
+		log("Current state processed: [" + curState + "]");
 
 		if(goalFunction(curState)){
 			finalState = curState;
 			break;
 		}
 
-		var newStates = stateTransition(curState);
-		for(var i = 0; i < newStates.length; i++){
-			if(!isMember(newStates[i], visisted) && ! isMember(newStates[i], queue)){
+		let newStates = stateTransition(curState);
+		for(let i = 0; i < newStates.length; i++){
+			if(!isMember(newStates[i], visited) && ! isMember(newStates[i], queue)){
 				queue.push(newStates[i]);
 			}
 		}
@@ -125,14 +126,44 @@ function bfs(start, goalFunction) {
 }
 
 function dfs(start, goalFunction) {
-	var stack = []; // define an empty array
+	let stack = []; // define an empty array
 	stack.push(start);
-	var steps = 0; // step counter
-	var finalState = null; // to store the finalState if found
+	let steps = 0; // step counter
+	let finalState = null; // to store the finalState if found
 //	stack.length // depth of the stack
 //	var curState = stack.pop(); // get the LAST element out of the array
 //	printState(curState, stack);
+	let visited = [];
 
+	while(stack.length > 0){
+		steps++;
+		if(steps > maxSteps){
+			log("Maximal steps reached!");
+			break;
+		}
+
+		let curState = stack.pop();
+		visited.push(curState);
+		log(steps + ". step");
+		log("Current state processed: [" + curState + "]");
+
+		if(goalFunction(curState)){
+			finalState = curState;
+			break;
+		}
+		let newStates = stateTransition(curState);
+		for(let i = 0; i < newStates.length; i++){
+			if(!isMember(newStates[i], visited) && ! isMember(newStates[i], stack)){
+				stack.push(newStates[i]);
+			}
+		}
+
+		if(stack.length > memoryLimit){
+			log("Queue too long");
+			break;
+		}
+
+	}
 
 	printResult("DFS", finalState, steps);
 
