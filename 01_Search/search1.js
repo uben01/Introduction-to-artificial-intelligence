@@ -190,7 +190,7 @@ function dfs(start, goalFunction) {
 	return finalState;
 }
 
-function iter_depth_dfs(start, goalFunction) {
+function iter_dfs(start, goalFunction) {
 	let maxDepth = 0;
 	let depthDelta = 3;
 
