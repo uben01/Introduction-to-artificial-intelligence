@@ -1,23 +1,3 @@
-class State{
-	constructor(value, depth) {
-		this.value = value;
-		this.depth = depth;
-		this.length = this.value.length;
-
-		for(let i = 0; i < this.length; i++){
-			this[i] = value[i];
-		}
-	}
-
-	static newStates(arrValues, depth){
-		let arr = [];
-		arrValues.forEach(function(value){
-			arr.push(new State(value, depth+1));
-		});
-		return arr;
-	}
-}
-
 const memoryLimit = 2000;
 const maxSteps = 5000;
 
@@ -30,7 +10,7 @@ const initialState = [1, 4, 0, 3, 2];
 function log(message) {
 	if (typeof document !== "undefined")
 		document.getElementById("results").value = document.getElementById("results").value + "\n" + message;
-	else 
+	else
 		console.log(message);
 }
 
@@ -191,6 +171,27 @@ function dfs(start, goalFunction) {
 }
 
 function iter_dfs(start, goalFunction) {
+	class State {
+		constructor(value, depth) {
+			this.value = value;
+			this.depth = depth;
+			this.length = this.value.length;
+
+			for (let i = 0; i < this.length; i++) {
+				this[i] = value[i];
+			}
+		}
+
+
+		static newStates(arrValues, depth) {
+			let arr = [];
+			arrValues.forEach(function (value) {
+				arr.push(new State(value, depth + 1));
+			});
+			return arr;
+		}
+	}
+
 	let maxDepth = 0;
 	let depthDelta = 3;
 
@@ -204,14 +205,13 @@ function iter_dfs(start, goalFunction) {
 	let visited = [];
 
 	log("Current maxdepth " + maxDepth);
-	outer: while(stack.length > 0) {
-		let offset = 0;
+	outer: while (stack.length > 0) {
 		let isModified = false;
-		for (let i = stack.length -1; i >= 0; i--) {
+		for (let i = stack.length - 1; i >= 0; i--) {
 			if (stack[i].depth <= maxDepth) {
 				isModified = true;
-
 				steps++;
+
 				if (steps > maxSteps) {
 					log("Maximal steps reached!");
 					break outer;
@@ -228,10 +228,9 @@ function iter_dfs(start, goalFunction) {
 					break outer;
 				}
 				let newStates = State.newStates(stateTransition(curState.value), curState.depth);
-				for (let j = 0; j < newStates.length; j++) {
+				for (let j = newStates.length - 1; j >= 0; j--) {
 					if (!isMember(newStates[j].value, visited) && !isMember(newStates[j].value, stack)) {
-						stack.splice(stack.length-offset, 0, newStates[j]);
-						offset++;
+						stack.splice(i, 0, newStates[j]);
 					}
 				}
 
@@ -239,8 +238,8 @@ function iter_dfs(start, goalFunction) {
 					log("Queue too long");
 					break outer;
 				}
-			continue outer;
- 			}
+				continue outer;
+			}
 		}
 		if (!isModified) {
 			maxDepth += depthDelta;
@@ -248,7 +247,7 @@ function iter_dfs(start, goalFunction) {
 		}
 	}
 
-	printResult("DFS", finalState, steps);
+	printResult("I_DFS", finalState, steps);
 
 	return finalState;
 }
