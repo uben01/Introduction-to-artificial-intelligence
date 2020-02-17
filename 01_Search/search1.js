@@ -142,7 +142,7 @@ function dfs(start, goalFunction) {
 			break;
 		}
 
-		let curState = stack.pop();
+		let curState = stack.splice(0,1)[0];
 		visited.push(curState);
 		log(steps + ". step");
 		log("Current state processed: [" + curState + "]");
@@ -152,9 +152,9 @@ function dfs(start, goalFunction) {
 			break;
 		}
 		let newStates = stateTransition(curState);
-		for(let i = 0; i < newStates.length; i++){
+		for(let i = newStates.length - 1; i >= 0; i--){
 			if(!isMember(newStates[i], visited) && ! isMember(newStates[i], stack)){
-				stack.push(newStates[i]);
+				stack.splice(0,0, newStates[i]);
 			}
 		}
 
@@ -207,7 +207,7 @@ function iter_dfs(start, goalFunction) {
 	log("Current maxdepth " + maxDepth);
 	outer: while (stack.length > 0) {
 		let isModified = false;
-		for (let i = stack.length - 1; i >= 0; i--) {
+		for (let i = 0; i < stack.length; i++) {
 			if (stack[i].depth <= maxDepth) {
 				isModified = true;
 				steps++;
