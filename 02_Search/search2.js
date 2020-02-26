@@ -3,7 +3,8 @@ const maxSteps = 5000;
 
 
 var initialState = [3, 1, 0];
-// var initialState = [1, 0, 5, 3, 2];
+//var initialState = [1, 0, 5, 3, 2];
+//var initialState = [6, 5, 1, 2, 4, 3];
 
 
 function log(message) {
@@ -283,7 +284,7 @@ function greedy(start, goalFunction) {
             newNodes[i].f = h(newNodes[i]);
             newNodes[i].totalCost = act.totalCost + newNodes[i].cost;
 
-            if(!isMemberWithLEValue(prQueue, newNodes[i]) && !isMemberWithLEValue(visitedList, newNodes[i])){
+            if(!isMemberWithLEValue(prQueue, newNodes[i]) && !isMemberWithLEValue(visited, newNodes[i])){
                 prQueue.push(newNodes[i]);
             }
         }
@@ -309,10 +310,38 @@ function astar(start, goalFunction) {
     prQueue.push(start); // start is inserted in the prQueue
     var steps = 0; // we count the steps, here we init the counter
     var finalState = null; // for storing the finalState if found
+    let visited = [];
 
-    ////////////////////
-    // TODO while...
-    ////////////////////
+    while (prQueue.length > 0) {
+        steps++;
+        if (steps > maxSteps) {
+            log("MaxStep reached");
+            break;
+        }
+        var act = prQueue.shift(); // get the FIRST element from the stack
+        visited.push(act);
+        log("Processing act: " + act.s + " (" + act.f + "), number of nodes in the stack: " + prQueue.length);
+        if (goalFunction(act)) {
+            finalState = act;
+            break;
+        }
+        var newNodes = stateTransition(act);
+        for (var i=0; i<newNodes.length; i++) {
+            newNodes[i].totalCost = act.totalCost + newNodes[i].cost;
+            newNodes[i].f = h(newNodes[i]) + newNodes[i].totalCost;
+
+            if(!isMemberWithLEValue(prQueue, newNodes[i]) && !isMemberWithLEValue(visited, newNodes[i])){
+                prQueue.push(newNodes[i]);
+            }
+        }
+        prQueue = sortStruct(prQueue);
+
+        if (prQueue.length > memoryLimit) {
+            log("Queue too long");
+            break;
+        }
+    }
+
     if (finalState) { // if we found the solution
         log("Final state found: " + finalState.s + " (" + act.totalCost + ") in " + steps + " steps");
     } else {
