@@ -1,9 +1,11 @@
+
 var moverClass = function () {
     var ownData = undefined;
 
     this.init = function (c, playerdata, selfindex) {
-        console.log('hello, world');
-        // here an initialization might take place;
+        var timeLimit = Date.now() + 10000;
+        console.log(timeLimit - Date.now());
+        // ciklusban megvizsgálni, hogy elértük-e már a time limitet. ha igen, visszatérni és folytatni ahogy tudjuk...
     }
 
     this.movefunction = function (c, playerdata, selfindex) {
