@@ -1,4 +1,4 @@
-# Steps
+## Working process
  
 ### First try
 <ol>
@@ -15,4 +15,17 @@
         <b>Move function</b>: greedy search. Just go to the point, with minimal heuristic value.
         Of course, this results in a suboptimal road. Most of the turns hits the wall, because of the great velocity.
     </li>
-</ol> 
+</ol>
+
+### Improvements
+<ol>
+    <li>
+        Change greedy search to <b>SMA*</b>
+    </li>
+    <li>
+        Use heuristic: <pre>distance ÷ steps taken</pre>
+    </li>
+    <li>
+        After deepening, calculate if we can take another depth. If time runs out, choose the first step of the deepest, best solution.
+    </li>
+</ol>

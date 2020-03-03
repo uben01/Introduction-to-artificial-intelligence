@@ -67,14 +67,14 @@ class HeuristicMap {
     mapping = function (c) {
         // find finish lines
         let finishLines = [];
-        for(let i = 0; i < this.sizeX; i++){
-            for(let j = 0; j < this.sizeY; j++){
-                if(c[i][j] == 100){
-                    finishLines.push({x:i, y:j});
+        for (let i = 0; i < this.sizeX; i++) {
+            for (let j = 0; j < this.sizeY; j++) {
+                if (c[i][j] == 100) {
+                    finishLines.push({x: i, y: j});
                 }
             }
         }
-        for(let i = 0; i < finishLines.length; i++){
+        for (let i = 0; i < finishLines.length; i++) {
             var prQueue = [];
             prQueue.push({x: finishLines[i].x, y: finishLines[i].y, cost: 0});
             this.matrix[finishLines[i].x][finishLines[i].y] = 0;
@@ -82,14 +82,14 @@ class HeuristicMap {
                 const act = prQueue.shift();
                 let newNodes = this.stateTransition(act);
                 for (let i = 0; i < newNodes.length; i++) {
-                    if(c[newNodes[i].x][newNodes[i].y] >= 0){
+                    if (c[newNodes[i].x][newNodes[i].y] >= 0) {
                         newNodes[i].cost = act.cost + 1;
                         if (!this.isMemberWithLEValue(prQueue, newNodes[i]) &&
                             !this.isInMatrixWithLEValue(newNodes[i])) {
                             prQueue.push(newNodes[i]);
                             this.matrix[newNodes[i].x][newNodes[i].y] = newNodes[i].cost;
                         }
-                    } else{
+                    } else {
                         this.matrix[newNodes[i].x][newNodes[i].y] = act.cost + 1 + 5; // OR INF
                     }
                 }
@@ -104,41 +104,42 @@ var moverClass = function () {
     let heuristicMap;
 
     this.init = function (c, playerdata, selfindex) {
-        var timeLimit = Date.now() + 10000;
-        console.log("INIT TIME LIMIT: ", timeLimit - Date.now());
+        const timeLimit = Date.now() + 10000;
         heuristicMap = new HeuristicMap(c, playerdata[selfindex].oldpos);
         console.log("INIT TIME LIMIT: ", timeLimit - Date.now());
     }
 
     this.movefunction = function (c, playerdata, selfindex) {
         // TODO: plan ahead, don't use greedy algorithm
-        var timeLimit = Date.now() + 1000;
-        console.log("MOVE TIME LIMIT: ", timeLimit - Date.now());
-        var self = playerdata[selfindex]; // read the info for the actual player
-        var newcenter = { // thats how the center of the next movement can be computed
+        const timeLimit = Date.now() + 1000;
+        const self = playerdata[selfindex]; // read the info for the actual player
+        const newCenter = { // that's how the center of the next movement can be computed
             x: self.pos.x + (self.pos.x - self.oldpos.x),
             y: self.pos.y + (self.pos.y - self.oldpos.y)
         };
-        var nextmove = newcenter;
+        let nextMove = newCenter;
 
-        var validmoves = [];
+        let validMoves = [];
         // we try the possible movements
-        for (var i = -1; i <= 1; i++)
-            for (var j = -1; j <= 1; j++) {
-                nextmove = {x: newcenter.x + i, y: newcenter.y + j};
+        for (let i = -1; i <= 1; i++) {
+            for (let j = -1; j <= 1; j++) {
+                nextMove = {x: newCenter.x + i, y: newCenter.y + j};
                 // if the movement is valid (the whole line has to be valid)
-                if (lc.validLine(self.pos, nextmove) && (lc.playerAt(nextmove) < 0 || lc.playerAt(nextmove) == selfindex))
-                    validmoves.push(nextmove);
+                if (lc.validLine(self.pos, nextMove) && (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex)) {
+                    validMoves.push(nextMove);
+                }
             }
-        if(validmoves.length) {
-            heuristicMap.sortList(validmoves);
-            var move = validmoves[0];
-            move.x -= newcenter.x;
-            move.y -= newcenter.y;
-            return move;
+        }
+
+        let move = {x: 0, y: 0};
+        if (validMoves.length) {
+            heuristicMap.sortList(validMoves);
+            move = validMoves[0];
+            move.x -= newCenter.x;
+            move.y -= newCenter.y;
         }
         console.log("MOVE TIME LIMIT: ", timeLimit - Date.now());
-        return {x: 0, y: 0}; // if there is no valid movement, then close our eyes....
+        return move; // if there is no valid movement, then close our eyes....
 
     }
 }
