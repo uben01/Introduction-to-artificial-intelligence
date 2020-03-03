@@ -6,6 +6,10 @@ var moverClass = function () {
         var timeLimit = Date.now() + 10000;
         console.log(timeLimit - Date.now());
         // ciklusban megvizsgálni, hogy elértük-e már a time limitet. ha igen, visszatérni és folytatni ahogy tudjuk...
+        // első próbálkozás:
+        //  non-admissible heuristic -- cost: 1. sebességgel való távolság a céltól ára + 1 (lépés)
+        // következő:
+        //  cost: +1 helyett a fékezés költségére valamilyen függvény
     }
 
     this.movefunction = function (c, playerdata, selfindex) {
