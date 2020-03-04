@@ -106,52 +106,24 @@ class HeuristicMap {
 }
 
 class Node {
-    static bound;
+    static bound = 3;
 
     constructor(center, prev, nowDistance) {
-        this._distance = (prev ? prev.distance : 0) + nowDistance;
-        this._stepsTaken = (prev ? prev.stepsTaken : -1) + 1;
-        this._center = center;
-        this._firstNode = (prev ? prev.firstNode : null);
-        this._velocity = {};
+        this.distance = (prev ? prev.distance : 0) + nowDistance;
+        this.stepsTaken = (prev ? prev.stepsTaken : -1) + 1;
+        this.center = center;
+        this.firstNode = (prev ? prev.firstNode : null);
+        this.velocity = {};
         if (prev) {
-            this._velocity = {
+            this.velocity = {
                 x: center.x - prev.center.x,
                 y: center.y - prev.center.y
             };
         }
     }
 
-    get center() {
-        return this._center;
-    }
-
-    get velocity() {
-        return this._velocity;
-    }
-
-    get firstNode() {
-        return this._firstNode;
-    }
-
-    get stepsTaken() {
-        return this._stepsTaken;
-    }
-
-    get distance() {
-        return this._distance;
-    }
-
-    set firstNode(value) {
-        this._firstNode = value;
-    }
-
-    set velocity(value) {
-        this._velocity = value;
-    }
-
     h() {
-        return this._distance / this._stepsTaken;
+        return this.distance / this.stepsTaken;
     }
 
     static inBound(leaf) {
@@ -193,7 +165,6 @@ var moverClass = function () {
             y: self.pos.y
         };
 
-        Node.bound = 4; // try it out, we can use a consistent constant here, because the image space is always around the same size
         let validNodes = [];
 
         {
