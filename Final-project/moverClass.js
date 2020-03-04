@@ -24,7 +24,7 @@ class HeuristicMap {
 
     sortList = function (list) {
         return list.sort(function (a, b) {
-            if (this[a.x][a.y]  == undefined && this[b.x][b.y] == undefined) {
+            if (this[a.x][a.y] == undefined && this[b.x][b.y] == undefined) {
                 return 0;
             }
             if (this[a.x][a.y] == undefined) {
@@ -90,7 +90,7 @@ class HeuristicMap {
                             this.matrix[newNodes[i].x][newNodes[i].y] = newNodes[i].cost;
                         }
                     } else {
-                        this.matrix[newNodes[i].x][newNodes[i].y] = act.cost + 1 + 5; // APPLY PENALTY
+                        this.matrix[newNodes[i].x][newNodes[i].y] = act.cost + 1 + 1000; // APPLY PENALTY
                     }
                 }
 
@@ -100,33 +100,30 @@ class HeuristicMap {
     }
 
     // May have to redo (square, or smthing)
-    distance = function(from, to){
-        let fromVal = this.matrix[from.x][from.y];
-        let toVal = this.matrix[to.x][to.y];
-        return fromVal - toVal;
+    distance = function (from, to) {
+        return this.matrix[from.x][from.y] - this.matrix[to.x][to.y];
     }
 }
 
-class Leaf{
-    static bound = -1;
+class Node {
+    static bound;
 
-    constructor(coordinates, prev, nowDistance) {
+    constructor(center, prev, nowDistance) {
         this._distance = (prev ? prev.distance : 0) + nowDistance;
-        this._stepsTaken = (prev ? prev.stepsTaken : 0) + 1;
-        this._coordinates = coordinates;
+        this._stepsTaken = (prev ? prev.stepsTaken : -1) + 1;
+        this._center = center;
         this._firstNode = (prev ? prev.firstNode : null);
         this._velocity = {};
         if (prev) {
             this._velocity = {
-                x: coordinates.x - prev.coordinates.x,
-                y: coordinates.y - prev.coordinates.y
+                x: center.x - prev.center.x,
+                y: center.y - prev.center.y
             };
         }
     }
 
-
-    get coordinates() {
-        return this._coordinates;
+    get center() {
+        return this._center;
     }
 
     get velocity() {
@@ -153,11 +150,11 @@ class Leaf{
         this._velocity = value;
     }
 
-    h(){
-        return this._distance / this.stepsTaken;
+    h() {
+        return this._distance / this._stepsTaken;
     }
 
-    static inBound(leaf){
+    static inBound(leaf) {
         return leaf.stepsTaken <= this.bound;
     }
 
@@ -192,56 +189,64 @@ var moverClass = function () {
             y: (self.pos.y - self.oldpos.y)
         };
         const newCenter = { // that's how the center of the next movement can be computed
-            x: self.pos.x + velocity.x,
-            y: self.pos.y + velocity.y
+            x: self.pos.x,
+            y: self.pos.y
         };
 
-        Leaf.bound = 4; // try it out, we can use a consistent constant here, because the image space is always around the same size
-        let validLeafs = [];
+        Node.bound = 4; // try it out, we can use a consistent constant here, because the image space is always around the same size
+        let validNodes = [];
 
-        // create pseudo leaf
-        let leaf = new Leaf(newCenter, null, 0);
-        leaf.velocity = velocity;
-        leaf.firstNode = leaf;
-        validLeafs.push(leaf);
+        {
+            // create pseudo node
+            let node = new Node(newCenter, null, 0);
+            node.velocity = velocity;
+            //node.firstNode = node;
+            validNodes.push(node);
+        }
 
         let index = 0;
-        while (validLeafs.length > 0) {
-            if (!Leaf.inBound(validLeafs[index])) {
-                index++;
-                if(index >= validLeafs.length){
-                    break;
+        while (validNodes.length > 0) {
+            if (index < validNodes.length) {
+                if (!Node.inBound(validNodes[index])) {
+                    index++;
+                    continue;
                     //++Leaf.bound;
                 }
-                continue;
+            } else {
+                break;
             }
-            let startingLeaf = validLeafs.splice(index, 1)[0];
 
+            let startingNode = validNodes.splice(index, 1)[0];
             index = 0;
+            let distance = null;
             // we try the possible movements
             for (let i = -1; i <= 1; i++) {
                 for (let j = -1; j <= 1; j++) {
                     const nextMove = { // that's how the center of the next movement can be computed
-                        x: startingLeaf.coordinates.x + startingLeaf.velocity.x + i,
-                        y: startingLeaf.coordinates.y + startingLeaf.velocity.y + j
+                        x: startingNode.center.x + (startingNode.velocity.x + i),
+                        y: startingNode.center.y + (startingNode.velocity.y + j)
                     };
-                    //let nextMove = {x: startingLeaf.coordinates.x + i, y: startingLeaf.coordinates.y + j};
+                    //let nextMove = {x: startingNode.coordinates.x + i, y: startingNode.coordinates.y + j};
                     // if the movement is valid (the whole line has to be valid)
-                    if (lc.validLine(startingLeaf.coordinates, nextMove) && (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex)) {
-                        let distance = heuristicMap.distance(startingLeaf.coordinates, nextMove) //Math.sqrt(Math.pow(nextMove.x - startingLeaf.coordinates.x, 2)+Math.pow(nextMove.y - startingLeaf.coordinates.y, 2));
-                        let leaf = new Leaf(nextMove, startingLeaf, distance);
-                        validLeafs.push(leaf);
+                    if (lc.validLine(startingNode.center, nextMove) && (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex)) {
+                        distance = heuristicMap.distance(startingNode.center, nextMove);
+
+                        let node = new Node(nextMove, startingNode, distance);
+                        if(!node.firstNode){
+                            node.firstNode = node;
+                        }
+                        validNodes.push(node);
                     }
                 }
             }
-            Leaf.sortList(validLeafs);
+            Node.sortList(validNodes);
         }
 
         let move = {x: 0, y: 0};
-        if (validLeafs.length) {
-            move = validLeafs.shift().firstNode.coordinates;
-            move.x -= newCenter.x;
-            move.y -= newCenter.y;
+        if (validNodes.length) {
+            move = validNodes.shift().firstNode.center;
+            move.x -= newCenter.x + velocity.x;
+            move.y -= newCenter.y + velocity.y;
         }
         console.log("MOVE TIME LIMIT: ", timeLimit - Date.now());
         return move;
