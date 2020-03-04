@@ -199,7 +199,7 @@ var moverClass = function () {
                     };
                     //let nextMove = {x: startingNode.coordinates.x + i, y: startingNode.coordinates.y + j};
                     // if the movement is valid (the whole line has to be valid)
-                    if (lc.validLine(startingNode.center, nextMove) && (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex)) {
+                    if (lc.validLine(startingNode.center, nextMove) && (startingNode.firstNode || (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex))) {
                         distance = heuristicMap.distance(startingNode.center, nextMove);
 
                         let node = new Node(nextMove, startingNode, distance);
