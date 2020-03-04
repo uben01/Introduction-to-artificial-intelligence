@@ -20,7 +20,7 @@
 ### Improvements
 <ol>
     <li>
-        Change greedy search to <b>SMA*</b>
+        Change greedy search to <b>IDA*</b>
     </li>
     <li>
         Use heuristic: <pre>distance ÷ steps taken</pre>

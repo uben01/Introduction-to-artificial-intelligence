@@ -24,23 +24,23 @@ class HeuristicMap {
 
     sortList = function (list) {
         return list.sort(function (a, b) {
-            if (this.matrix[a.x][a.y] == undefined && this.matrix[b.x][b.y] == undefined) {
+            if (this[a.x][a.y] == undefined && this[b.x][b.y] == undefined) {
                 return 0;
             }
-            if (this.matrix[a.x][a.y] == undefined) {
+            if (this[a.x][a.y] == undefined) {
                 return -1;
             }
-            if (this.matrix[b.x][b.y] == undefined) {
+            if (this[b.x][b.y] == undefined) {
                 return 1;
             }
-            if (this.matrix[a.x][a.y] < this.matrix[b.x][b.y]) {
+            if (this[a.x][a.y] < this[b.x][b.y]) {
                 return -1;
             }
-            if (this.matrix[a.x][a.y] > this.matrix[b.x][b.y]) {
+            if (this[a.x][a.y] > this[b.x][b.y]) {
                 return 1;
             }
             return 0;
-        }.bind(this));
+        }.bind(this.matrix));
     }
 
     isMemberWithLEValue = function (list, node) {
@@ -90,13 +90,56 @@ class HeuristicMap {
                             this.matrix[newNodes[i].x][newNodes[i].y] = newNodes[i].cost;
                         }
                     } else {
-                        this.matrix[newNodes[i].x][newNodes[i].y] = act.cost + 1 + 5; // OR INF
+                        this.matrix[newNodes[i].x][newNodes[i].y] = act.cost + 1 + 1000; // APPLY PENALTY
                     }
                 }
 
                 prQueue = this.sortList(prQueue);
             }
         }
+    }
+
+    // May have to redo (square, or smthing)
+    distance = function (from, to) {
+        return this.matrix[from.x][from.y] - this.matrix[to.x][to.y];
+    }
+}
+
+class Node {
+    static bound = 3;
+
+    constructor(center, prev, nowDistance) {
+        this.distance = (prev ? prev.distance : 0) + nowDistance;
+        this.stepsTaken = (prev ? prev.stepsTaken : -1) + 1;
+        this.center = center;
+        this.firstNode = (prev ? prev.firstNode : null);
+        this.velocity = {};
+        if (prev) {
+            this.velocity = {
+                x: center.x - prev.center.x,
+                y: center.y - prev.center.y
+            };
+        }
+    }
+
+    h() {
+        return this.distance / this.stepsTaken;
+    }
+
+    static inBound(leaf) {
+        return leaf.stepsTaken <= this.bound;
+    }
+
+    static sortList = function (list) {
+        return list.sort(function (a, b) {
+            if (a.h() > b.h()) {
+                return -1;
+            }
+            if (a.h() < b.h()) {
+                return 1;
+            }
+            return 0;
+        });
     }
 }
 
@@ -110,36 +153,73 @@ var moverClass = function () {
     }
 
     this.movefunction = function (c, playerdata, selfindex) {
-        // TODO: plan ahead, don't use greedy algorithm
         const timeLimit = Date.now() + 1000;
         const self = playerdata[selfindex]; // read the info for the actual player
-        const newCenter = { // that's how the center of the next movement can be computed
-            x: self.pos.x + (self.pos.x - self.oldpos.x),
-            y: self.pos.y + (self.pos.y - self.oldpos.y)
-        };
-        let nextMove = newCenter;
 
-        let validMoves = [];
-        // we try the possible movements
-        for (let i = -1; i <= 1; i++) {
-            for (let j = -1; j <= 1; j++) {
-                nextMove = {x: newCenter.x + i, y: newCenter.y + j};
-                // if the movement is valid (the whole line has to be valid)
-                if (lc.validLine(self.pos, nextMove) && (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex)) {
-                    validMoves.push(nextMove);
+        const velocity = {
+            x: (self.pos.x - self.oldpos.x),
+            y: (self.pos.y - self.oldpos.y)
+        };
+        const newCenter = { // that's how the center of the next movement can be computed
+            x: self.pos.x,
+            y: self.pos.y
+        };
+
+        let validNodes = [];
+
+        {
+            // create pseudo node
+            let node = new Node(newCenter, null, 0);
+            node.velocity = velocity;
+            //node.firstNode = node;
+            validNodes.push(node);
+        }
+
+        let index = 0;
+        while (validNodes.length > 0) {
+            if (index < validNodes.length) {
+                if (!Node.inBound(validNodes[index])) {
+                    index++;
+                    continue;
+                    //++Leaf.bound;
+                }
+            } else {
+                break;
+            }
+
+            let startingNode = validNodes.splice(index, 1)[0];
+            index = 0;
+            let distance = null;
+            // we try the possible movements
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const nextMove = { // that's how the center of the next movement can be computed
+                        x: startingNode.center.x + (startingNode.velocity.x + i),
+                        y: startingNode.center.y + (startingNode.velocity.y + j)
+                    };
+                    //let nextMove = {x: startingNode.coordinates.x + i, y: startingNode.coordinates.y + j};
+                    // if the movement is valid (the whole line has to be valid)
+                    if (lc.validLine(startingNode.center, nextMove) && (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) == selfindex)) {
+                        distance = heuristicMap.distance(startingNode.center, nextMove);
+
+                        let node = new Node(nextMove, startingNode, distance);
+                        if(!node.firstNode){
+                            node.firstNode = node;
+                        }
+                        validNodes.push(node);
+                    }
                 }
             }
+            Node.sortList(validNodes);
         }
 
         let move = {x: 0, y: 0};
-        if (validMoves.length) {
-            heuristicMap.sortList(validMoves);
-            move = validMoves[0];
-            move.x -= newCenter.x;
-            move.y -= newCenter.y;
+        if (validNodes.length) {
+            move = validNodes.shift().firstNode.center;
+            move.x -= newCenter.x + velocity.x;
+            move.y -= newCenter.y + velocity.y;
         }
         console.log("MOVE TIME LIMIT: ", timeLimit - Date.now());
-        return move; // if there is no valid movement, then close our eyes....
-
+        return move;
     }
 }
