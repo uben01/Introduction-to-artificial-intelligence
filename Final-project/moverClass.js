@@ -49,7 +49,6 @@ class HeuristicMap {
                 if (list[i].cost <= node.cost) {
                     return true;
                 }
-                return false;
             }
         }
         return false;
@@ -109,9 +108,9 @@ class Node {
     static bound = 3;
 
     constructor(center, prev, nowDistance) {
+        this.center = center;
         this.distance = (prev ? prev.distance : 0) + nowDistance;
         this.stepsTaken = (prev ? prev.stepsTaken : -1) + 1;
-        this.center = center;
         this.firstNode = (prev ? prev.firstNode : null);
         this.velocity = {};
         if (prev) {
@@ -171,7 +170,6 @@ var moverClass = function () {
             // create pseudo node
             let node = new Node(newCenter, null, 0);
             node.velocity = velocity;
-            //node.firstNode = node;
             validNodes.push(node);
         }
 
@@ -203,10 +201,12 @@ var moverClass = function () {
                         distance = heuristicMap.distance(startingNode.center, nextMove);
 
                         let node = new Node(nextMove, startingNode, distance);
-                        if(!node.firstNode){
+                        if (!node.firstNode) {
                             node.firstNode = node;
                         }
-                        validNodes.push(node);
+                        if (node.stepsTaken != 0 || distance != 0 || (Math.abs(node.velocity.x) > 0 && Math.abs(node.velocity.y) > 0)) {
+                            validNodes.push(node);
+                        }
                     }
                 }
             }
