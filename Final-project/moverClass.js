@@ -1,4 +1,6 @@
 class HeuristicMap {
+    static finishValue = 100;
+
     constructor(c, startPos) {
         this.sizeX = c.length;
         this.sizeY = c[0].length;
@@ -68,13 +70,13 @@ class HeuristicMap {
         let finishLines = [];
         for (let i = 0; i < this.sizeX; i++) {
             for (let j = 0; j < this.sizeY; j++) {
-                if (c[i][j] == 100) {
+                if (c[i][j] == HeuristicMap.finishValue) {
                     finishLines.push({x: i, y: j});
                 }
             }
         }
         for (let i = 0; i < finishLines.length; i++) {
-            var prQueue = [];
+            let prQueue = [];
             prQueue.push({x: finishLines[i].x, y: finishLines[i].y, cost: 0});
             this.matrix[finishLines[i].x][finishLines[i].y] = 0;
             while (prQueue.length > 0) {
@@ -102,10 +104,14 @@ class HeuristicMap {
     distance = function (from, to) {
         return this.matrix[from.x][from.y] - this.matrix[to.x][to.y];
     }
+
+    isFinish = function (node) {
+        return this.matrix[node.center.x][node.center.y] == 0;
+    }
 }
 
 class Node {
-    static bound = 3;
+    static bound = 5;
 
     constructor(center, prev, nowDistance) {
         this.center = center;
@@ -126,10 +132,10 @@ class Node {
     }
 
     static inBound(leaf) {
-        return leaf.stepsTaken <= this.bound;
+        return leaf.stepsTaken < this.bound;
     }
 
-    static sortList = function (list) {
+    static sortList = function (list, heuristicMap) {
         return list.sort(function (a, b) {
             if (a.h() > b.h()) {
                 return -1;
@@ -174,12 +180,12 @@ var moverClass = function () {
         }
 
         let index = 0;
+        let isFinishNodeFound = false;
         while (validNodes.length > 0) {
             if (index < validNodes.length) {
-                if (!Node.inBound(validNodes[index])) {
+                if (!Node.inBound(validNodes[index]) || heuristicMap.isFinish(validNodes[index])) {
                     index++;
                     continue;
-                    //++Leaf.bound;
                 }
             } else {
                 break;
@@ -206,11 +212,20 @@ var moverClass = function () {
                         }
                         if (node.stepsTaken != 0 || distance != 0 || (Math.abs(node.velocity.x) > 0 && Math.abs(node.velocity.y) > 0)) {
                             validNodes.push(node);
+                            if (heuristicMap.isFinish(node)) {
+                                isFinishNodeFound = true;
+                                if (Node.bound > node.stepsTaken) {
+                                    Node.bound = node.stepsTaken;
+                                }
+                            }
                         }
                     }
                 }
             }
-            Node.sortList(validNodes);
+            if (isFinishNodeFound) {
+                validNodes = validNodes.filter(value => (value.stepsTaken < Node.bound || (value.stepsTaken == Node.bound && heuristicMap.isFinish(value))));
+            }
+            Node.sortList(validNodes, heuristicMap);
         }
 
         let move = {x: 0, y: 0};

@@ -33,9 +33,10 @@
 
 ### Improvements
 - [x] Change greedy search to **IDA&ast;**
-- [x] Use heuristic: e.g. **`distance ÷ steps taken`** 
+- [x] Use heuristic: e.g. **`distance ÷ steps_taken`** 
 - [ ] Try to eliminate as much nodes as we can.
     - [x] Zero distance first nodes
+    - [x] Lower bound if a finish node is found
 - [ ] After deepening, calculate if we can take another depth. If time runs out, choose the first step of the deepest, best solution.
 
 ### Multiplayer optimization
