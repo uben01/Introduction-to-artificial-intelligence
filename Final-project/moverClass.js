@@ -1,17 +1,17 @@
-var moverClass = function () {
+var V7Z3T5 = function () {
+    // HELPER CLASSES
     function HeuristicMap() {
-        var finishValue = 100;
-        var sizeX, sizeY, matrix = null;
+        let finishValue = 100;
+        let sizeX, sizeY, matrix = null;
 
-        this.initialize = function(c, startPos) {
+        this.initialize = function(c) {
             sizeX = c.length;
             sizeY = c[0].length;
             matrix = [...Array(sizeX)].map(x => Array(sizeY)); // initialize empty arrays of arrays
-            mapping(c, startPos);
-            console.log(matrix);
-        }
+            mapping(c);
+        };
 
-        var stateTransition = function (state) {
+        let stateTransition = function (state) {
             let newStates = [];
             for (let i = state.x - 1; i <= state.x + 1; i++) {
                 if (i < 0 || i >= sizeX) { // out of x bound
@@ -25,9 +25,9 @@ var moverClass = function () {
                 }
             }
             return newStates;
-        }
+        };
 
-        var sortList = function (list) {
+        let sortList = function (list) {
             return list.sort(function (a, b) {
                 if (this[a.x][a.y] == undefined && this[b.x][b.y] == undefined) {
                     return 0;
@@ -46,9 +46,9 @@ var moverClass = function () {
                 }
                 return 0;
             }.bind(matrix));
-        }
+        };
 
-        var isMemberWithLEValue = function (list, node) {
+        let isMemberWithLEValue = function (list, node) {
             for (let i = 0; i < list.length; i++) {
                 if (list[i].x == node.x && list[i].y == node.y) {
                     if (list[i].cost <= node.cost) {
@@ -57,18 +57,18 @@ var moverClass = function () {
                 }
             }
             return false;
-        }
+        };
 
-        var isInMatrixWithLEValue = function (node) {
+        let isInMatrixWithLEValue = function (node) {
             if (matrix[node.x][node.y] != undefined) {
                 if (matrix[node.x][node.y] < node.cost) {
                     return true;
                 }
             }
             return false;
-        }
+        };
 
-        var mapping = function (c) {
+        let mapping = function (c) {
             // find finish lines
             let finishLines = [];
             for (let i = 0; i < sizeX; i++) {
@@ -101,78 +101,82 @@ var moverClass = function () {
                     prQueue = sortList(prQueue);
                 }
             }
-        }
+        };
 
-        // May have to redo (square, or smthing)
         this.distance = function (from, to) {
             return matrix[from.x][from.y] - matrix[to.x][to.y];
-        }
+        };
 
         this.isFinish = function (node) {
             return matrix[node.getCenter().x][node.getCenter().y] == 0;
-        }
+        };
     }
 
     function Node() {
-        var center, distance, stepsTaken, firstNode, velocity = null;
+        let center, distance, stepsTaken, firstNode, velocity;
 
         this.initialize = function(_center, _prev, _nowDistance) {
             center = _center;
-            distance = (_prev ? _prev.getDistance() : 0) + _nowDistance;
-            stepsTaken = (_prev ? _prev.getStepsTaken() : -1) + 1;
-            firstNode = (_prev ? _prev.getFirstNode() : null);
+            distance = _nowDistance;
+            stepsTaken = 0;
+            firstNode = null;
             velocity = {};
+
             if (_prev) {
+                distance += _prev.getDistance();
+                stepsTaken += _prev.getStepsTaken() +1;
+                firstNode = _prev.getFirstNode();
+
                 velocity = {
                     x: center.x - _prev.getCenter().x,
                     y: center.y - _prev.getCenter().y
                 };
             }
-        }
+        };
 
         this.h = function() {
             return distance / stepsTaken;
-        }
+        };
 
         this.getCenter = function(){
             return center;
-        }
+        };
         this.getDistance = function(){
             return distance;
-        }
+        };
         this.getStepsTaken = function(){
             return stepsTaken;
-        }
+        };
         this.getFirstNode = function(){
             return firstNode;
-        }
+        };
         this.getVelocity = function(){
             return velocity;
-        }
+        };
         this.setVelocity = function(_velocity){
             velocity = _velocity;
-        }
+        };
         this.setFirstNode = function(_firstNode){
             firstNode = _firstNode;
-        }
+        };
     }
 
+    // STATE VARIABLES
     let heuristicMap;
-    let bound = 5;
+    let bound;
+    const initLimit = 10000, moveLimit = 1000;
+    let timeLimit;
 
-    this.init = function (c, playerdata, selfindex) {
-        const timeLimit = Date.now() + 10000;
-        heuristicMap = new HeuristicMap();
-        heuristicMap.initialize(c, playerdata[selfindex].oldpos);
-        console.log("INIT TIME LIMIT: ", timeLimit - Date.now());
-    }
-
-    function inBound(node, bound) {
+    // HELPER FUNCTIONS
+    let inBound = function(node, bound) {
         return node.getStepsTaken() < bound;
-    }
+    };
 
+    let resetBound = function(){
+        bound = 4;
+    };
 
-    var sortList = function (list) {
+    let sortList = function (list) {
         return list.sort(function (a, b) {
             if (a.h() > b.h()) {
                 return -1;
@@ -182,10 +186,22 @@ var moverClass = function () {
             }
             return 0;
         });
-    }
+    };
+
+    let timeLeft = function(){
+        return timeLimit - Date.now();
+    };
+
+    // API FUNCTIONS
+    this.init = function (c, playerdata, selfindex) {
+        timeLimit = Date.now() + initLimit;
+        heuristicMap = new HeuristicMap();
+        heuristicMap.initialize(c);
+        console.log("INIT TIME LIMIT: ", timeLeft());
+    };
 
     this.movefunction = function (c, playerdata, selfindex) {
-        const timeLimit = Date.now() + 1000;
+        timeLimit = Date.now() + moveLimit;
         const self = playerdata[selfindex]; // read the info for the actual player
 
         const velocity = {
@@ -206,6 +222,7 @@ var moverClass = function () {
             node.setVelocity(velocity);
             validNodes.push(node);
         }
+        resetBound();
 
         let index = 0;
         let isFinishNodeFound = false;
@@ -216,6 +233,12 @@ var moverClass = function () {
                     continue;
                 }
             } else {
+                if(!isFinishNodeFound){
+                    bound++;
+                    index = 0;
+                    console.log("BOUND INCREASED TO: " + bound);
+                    continue;
+                }
                 break;
             }
 
@@ -254,6 +277,9 @@ var moverClass = function () {
                 validNodes = validNodes.filter(value => (value.getStepsTaken() < bound || (value.getStepsTaken() == bound && heuristicMap.isFinish(value))));
             }
             sortList(validNodes, heuristicMap);
+            if(timeLeft() < 51){
+                break;
+            }
         }
 
         let move = {x: 0, y: 0};
@@ -262,7 +288,7 @@ var moverClass = function () {
             move.x -= newCenter.x + velocity.x;
             move.y -= newCenter.y + velocity.y;
         }
-        console.log("MOVE TIME LIMIT: ", timeLimit - Date.now());
+        console.log("MOVE TIME LIMIT: ", timeLeft());
         return move;
-    }
-}
+    };
+};
