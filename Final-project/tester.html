@@ -736,12 +736,14 @@
 
         $('#addnewplayer-codeplay').click(function () {
             //if ($('#newplayername-codeplay').val() != "" && $('#playercode').val() != "") {
-                var actfug = eval(moverClass);
+                var actfug = eval(V7Z3T5);
                 if (actfug != null) {
                     try {
                         lc.addPlayer("Bence", new actfug);
                         $('#newplayername-codeplay').val("");
                         $('#playercode').val("");
+
+
                     } catch (err) {
                         alert("Hiba történt a kód értelmezése során!");
                     }
