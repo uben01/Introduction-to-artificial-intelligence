@@ -88,8 +88,9 @@ or the bound lowering, in case of a finish node is found.
 - [x] Change greedy search to **IDA&ast;**
 - [x] Use heuristic: e.g. **`distance ÷ steps_taken`** 
 - [ ] Try to eliminate as much nodes as we can.
-    - [x] Zero distance first nodes
     - [x] Lower bound if a finish node is found
+    - [x] Every time after a sort, if the `validNodes.length` is greater then 500, cut the elements after the 500th index
 - [x] After every try, check the remaining time. If the time runs out, choose the best option
 
 ### Multiplayer optimization
+- [ ] If a player stand on a finish node, make it like wall from now on
