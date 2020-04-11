@@ -42,11 +42,14 @@
 <body>
 <div id="track-wrap" style="width: 800px; height: 500px;">
     <svg id="trackwrp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
-        <g id="track"></g>
-        <g id="playerlines"></g>
-        <g id="playercrosses"></g>
-        <g id="playerpoints"></g>
-        <g id="playernextmoves"></g>
+        <g id="track"/>
+        <g id="playerlines"/>
+        <g id="playercrosses"/>
+        <g id="playerpoints"/>
+        <g id="playernextmoves"/>
+
+        <g id="radius" opacity="0.4"/>
+        <g id="weights" />
     </svg>
 </div>
 <div class="level-select">
@@ -166,6 +169,31 @@
             return pnm;
         }
 
+        var drawHorizon=function(aplayer){
+            d3.select("#radius")
+                .append("circle")
+                .attr("mix-blend-mode", "screen")
+                .attr("cx", aplayer.ppos.y*au)
+                .attr("cy", aplayer.ppos.x*au)
+                .attr("r", 15*au)
+                .attr("fill", "black");
+        }
+
+        this.drawWeights = function (coord, weight) {
+            d3.select("#weights")
+                .append("text")
+                .attr("id", "a" + (coord.x * 100 + coord.y) + "")
+                .attr("y", coord.x * au)
+                .attr("x", coord.y * au)
+                .attr("fill", "orange")
+                .attr("font-size", 10)
+                .text(weight >= 1000 ? "o" : weight);
+
+        }
+        this.cleatWeights = function(){
+            d3.select("#weights").html('');
+        }
+
         this.addPlayer=function(name, pos){
             var player={name: name, ppos: pos, ppoint: undefined, lines:[], crosses:[], nextmovesigns:[], color: pcolors[players.length]}
             player.ppoint = drawPlayer(player);
@@ -198,6 +226,7 @@
                 players[pindex].nextmovesigns.transition().duration(duration)
                     .style("opacity",0);
             }
+            drawHorizon(players[pindex]);
         }
 
         this.restorePlayer = function(pindex){
@@ -435,7 +464,7 @@
         this.startcodeplay=function(){
             var pd=generatePlayerData();
             for(var i=0; i<players.length; i++)
-                players[i].mf.init(generateVisibleMap(i), pd, i);
+                players[i].mf.init(generateVisibleMap(i), pd, i, trackd);
             actplayer=0;
             updateStatus("Az első játékos "+players[0].name+".");
             codestep();
