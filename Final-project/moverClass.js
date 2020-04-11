@@ -69,14 +69,12 @@ var V7Z3T5 = function () {
             }
         }
 
-        const _startPositionValue = 1;
         const _finishPositionValue = 100;
-        const _blockerValue = -1;
         const _blockerPenalty = 1000;
 
         let _sizeX, _sizeY, _matrix;
         let _r;
-        let _aCalculateV = [];
+        let _aMargin = [];
 
         this.initialize = function (c, self) {
             _sizeX = c.length;
@@ -89,71 +87,96 @@ var V7Z3T5 = function () {
             for (dYp = 0; self.y + dYp < _sizeY && !isUndefined(c[self.x][self.y + dYp]); dYp++) ;
             _r = Math.max(-dXn, dXp, -dYn, dYp) - 1;
 
-            _matrix = [...Array(_sizeX)].map(x => Array(_sizeY));
+            initialCalculateVs(self, c);
+        };
+
+        let initialCalculateVs = function (self, c) {
+            _matrix = [...Array(_sizeX)].map(() => Array(_sizeY));
+
             for (let x = 0; x < _sizeX; x++)
                 for (let y = 0; y < _sizeY; y++) {
                     _matrix[x][y] = new Spot(c[x][y]);
-                    if (_matrix[x][y].getT() === _blockerValue) {
-                        _matrix[x][y].setV(_blockerPenalty);
-                    }
-                }
-            calculateVs(self);
-        };
-
-        let calculateVs = function (self) {
-            if (!isUndefined(self)) {
-                _matrix[self.x][self.y].setV(0);
-                let startingState = {
-                    x: self.x,
-                    y: self.y,
-                    cost: 0
                 }
 
-                let prQueue = [];
-                prQueue.push(startingState);
-                while (prQueue.length > 0) {
-                    const act = prQueue.shift();
-                    let newNodes = stateTransition(act);
-                    for (let i = 0; i < newNodes.length; i++) {
-                        if (_matrix[newNodes[i].x][newNodes[i].y].getT() >= 0) {
-                            newNodes[i].cost = act.cost + 1;
-                            if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
-                                !isInMatrixWithLEValue(newNodes[i])) {
-                                prQueue.push(newNodes[i]);
-                                _matrix[newNodes[i].x][newNodes[i].y].setV(newNodes[i].cost);
-                            }
-                        } else {
-                            _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
-                        }
-
-                    }
-                }
-            } else {
-                _aCalculateV.forEach(function (item, index) {
-                    let minV = Number.POSITIVE_INFINITY;
-                    if (_matrix[item.x][item.y].getV()) {
-                        minV = _matrix[item.x][item.y].getV();
-                    }
-                    let newNodes = stateTransition(item);
-                    for (let i = 0; i < newNodes.length; i++) {
-                        let iV = _matrix[newNodes[i].x][newNodes[i].y].getV();
-                        if (!isUndefined(iV)) {
-                            if (iV + 1 < minV) {
-                                minV = iV + 1;
-                            }
-                        }
-                    }
-                    if (minV == Number.POSITIVE_INFINITY) {
-                        _aCalculateV.push(item);
-                    } else {
-                        _matrix[item.x][item.y].setV(minV);
-                        _aCalculateV.splice(index, 1);
-                    }
-
-                }.bind(this));
+            _matrix[self.x][self.y].setV(0);
+            let startingState = {
+                x: self.x,
+                y: self.y,
+                cost: 0
             }
 
+            let prQueue = [];
+            prQueue.push(startingState);
+            while (prQueue.length > 0) {
+                const act = prQueue.shift();
+                let newNodes = stateTransition(act);
+                for (let i = 0; i < newNodes.length; i++) {
+                    if (isUndefined(_matrix[newNodes[i].x][newNodes[i].y].getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargin.includes(act)) {
+                        _aMargin.push(act);
+                    } else if (_matrix[newNodes[i].x][newNodes[i].y].getT() >= 0) {
+                        newNodes[i].cost = act.cost + 1;
+                        if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
+                            !isInMatrixWithLEValue(newNodes[i])) {
+                            prQueue.push(newNodes[i]);
+                            _matrix[newNodes[i].x][newNodes[i].y].setV(newNodes[i].cost);
+                        }
+                    } else {
+                        _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
+                    }
+                }
+            }
+            //TOREMOVE
+            _tdraw.cleatWeights();
+            for (let i = 0; i < _sizeX; i++) {
+                for (let j = 0; j < _sizeY; j++) {
+                    if (!isUndefined(_matrix[i][j].getV())) {
+                        _tdraw.drawWeights({x: i, y: j}, _matrix[i][j].getV());
+                    }
+                }
+            }
+            //TOREMOVE
         };
+
+        let calculateVs = function(){
+            let aNewMargin = [];
+            for(let i = 0; i < _aMargin.length; i++){
+                let newNodes = stateTransition(_aMargin[i]);
+                for (let j = 0; j < newNodes.length; j++) {
+                    newNodes[j].cost = _aMargin[i].cost + 1;
+                    let mElement = _matrix[newNodes[j].x][newNodes[j].y];
+                    if(isUndefined(mElement.getT()) && !aNewMargin.includes(_aMargin[i])){
+                        aNewMargin.push(_aMargin[i]);
+                        continue;
+                    }
+
+                    if(mElement.getT() >= 0) {
+                        if (isUndefined(mElement.getV()) || mElement.getV() > _aMargin[i].cost + 1) {
+                            if (!isMemberWithLEValue(_aMargin, newNodes[j]) &&
+                                !isInMatrixWithLEValue(newNodes[j])) {
+                                _aMargin.push(newNodes[j]);
+                                mElement.setV(newNodes[j].cost);
+                            }
+                        }
+                    } else{
+                        mElement.setV(_blockerPenalty);
+                    }
+                }
+            }
+            _aMargin = aNewMargin;
+            console.log(_aMargin);
+
+
+            //TOREMOVE
+            _tdraw.cleatWeights();
+            for (let i = 0; i < _sizeX; i++) {
+                for (let j = 0; j < _sizeY; j++) {
+                    if (!isUndefined(_matrix[i][j].getV())) {
+                        _tdraw.drawWeights({x: i, y: j}, _matrix[i][j].getV());
+                    }
+                }
+            }
+            //TOREMOVE
+        }
 
         let isMemberWithLEValue = function (list, node) {
             for (let i = 0; i < list.length; i++) {
@@ -201,25 +224,20 @@ var V7Z3T5 = function () {
                 if (p.x < 0) continue;
                 if (p.x >= _sizeX) break;
 
-                let dY = Math.floor(Math.sqrt(_r * _r - x * x));
+                let dY = Math.ceil(Math.sqrt(_r * _r - x * x));
                 for (let y = -dY; y <= dY; y++) {
                     p.y = pos.y + y;
                     if (p.y < 0) continue;
                     if (p.y >= _sizeY) break;
                     if (!isUndefined(c[p.x][p.y])) {
-                        if (isUndefined(_matrix[p.x][p.y].getT())){
-                            _matrix[p.x][p.y].setT(c[p.x][p.y]);
-                        }
-                        if (c[p.x][p.y] === _blockerValue) {
-                            _matrix[p.x][p.y].setV(_blockerPenalty);
-                        } else {
-                            _aCalculateV.push({x: p.x, y: p.y});
-                        }
+                        _matrix[p.x][p.y].setT(c[p.x][p.y]);
                     }
                 }
             }
+
             calculateVs();
         };
+
     }
 
     // STATE VARIABLES
@@ -244,11 +262,11 @@ var V7Z3T5 = function () {
     let sortList = function (list) {
         return list.sort(function (a, b) {
             if (map.isFinish(a) || map.isFinish(b)) {
-                if (map.isFinish(a)) {
-                    return -1;
-                }
-                if (map.isFinish(b)) {
+                if (!map.isFinish(a)) {
                     return 1;
+                }
+                if (!map.isFinish(b)) {
+                    return -1;
                 }
                 return 0;
             }
@@ -267,9 +285,14 @@ var V7Z3T5 = function () {
         return timeLimit - Date.now();
     };
 
+    //TOREMOVE
+    let _tdraw;
+
     // API FUNCTIONS
-    this.init = function (c, playerdata, selfindex) {
+    this.init = function (c, playerdata, selfindex, tdraw /*//TOREMOVE*/) {
+
         timeLimit = Date.now() + initLimit;
+        _tdraw = tdraw; //TOREMOVE
 
         map = new Map();
         map.initialize(c, playerdata[selfindex].pos);
@@ -335,7 +358,8 @@ var V7Z3T5 = function () {
                     if (lc.equalPoints(self.oldpos, self.pos) && lc.equalPoints(self.pos, nextMove))
                         continue;
 
-                    if (lc.validVisibleLine(c, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() || (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) === selfindex))) {
+                    if (lc.validVisibleLine(c, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() ||
+                        (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) === selfindex))) {
                         distance = map.distance(startingNode.getCenter(), nextMove);
 
                         let node = new Node();
