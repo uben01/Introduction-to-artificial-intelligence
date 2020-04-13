@@ -126,7 +126,7 @@ var V7Z3T5 = function () {
                 }
             }
             //TOREMOVE
-            _tdraw.cleatWeights();
+            _tdraw.clearWeights();
             for (let i = 0; i < _sizeX; i++) {
                 for (let j = 0; j < _sizeY; j++) {
                     if (!isUndefined(_matrix[i][j].getV())) {
@@ -167,7 +167,7 @@ var V7Z3T5 = function () {
 
 
             //TOREMOVE
-            _tdraw.cleatWeights();
+            _tdraw.clearWeights();
             for (let i = 0; i < _sizeX; i++) {
                 for (let j = 0; j < _sizeY; j++) {
                     if (!isUndefined(_matrix[i][j].getV())) {
