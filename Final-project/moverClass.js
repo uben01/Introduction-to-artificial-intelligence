@@ -163,7 +163,6 @@ var V7Z3T5 = function () {
                 }
             }
             _aMargin = aNewMargin;
-            console.log(_aMargin);
 
 
             //TOREMOVE
@@ -238,6 +237,22 @@ var V7Z3T5 = function () {
             calculateVs();
         };
 
+        this.getTMap = function(){
+            let tMap = [...Array(_sizeX)].map(() => Array(_sizeY));
+            for(let i = 0; i < _sizeX; i++){
+                for (let j = 0; j < _sizeY; j++){
+                    tMap[i][j] = _matrix[i][j].getT();
+                }
+            }
+            return tMap;
+        };
+
+        this.reInitialize = function(self){
+            // margin kezdettel addig, ameddig ameddig el nem érjük a self-et.
+            // innentől a sort megfordul
+            //initialCalculateVs(_aMargin[0], _matrix);
+        };
+
     }
 
     // STATE VARIABLES
@@ -260,25 +275,27 @@ var V7Z3T5 = function () {
     };
 
     let sortList = function (list) {
-        return list.sort(function (a, b) {
-            if (map.isFinish(a) || map.isFinish(b)) {
-                if (!map.isFinish(a)) {
-                    return 1;
+        let fnSort = function (a, b) {
+                if (map.isFinish(a) || map.isFinish(b)) {
+                    if (!map.isFinish(a)) {
+                        return 1;
+                    }
+                    if (!map.isFinish(b)) {
+                        return -1;
+                    }
+                    return 0;
                 }
-                if (!map.isFinish(b)) {
+
+                if (a.h() > b.h()) {
                     return -1;
+                }
+                if (a.h() < b.h()) {
+                    return 1;
                 }
                 return 0;
             }
 
-            if (a.h() > b.h()) {
-                return -1;
-            }
-            if (a.h() < b.h()) {
-                return 1;
-            }
-            return 0;
-        });
+        return list.sort(fnSort.bind(this));
     };
 
     let timeLeft = function () {
@@ -315,6 +332,7 @@ var V7Z3T5 = function () {
         };
 
         map.updateMap(c, nowCenter);
+        let tMap = map.getTMap();
 
         let validNodes = [];
         {
@@ -338,7 +356,7 @@ var V7Z3T5 = function () {
                 if (!isFinishNodeFound) {
                     bound++;
                     index = 0;
-                    //console.log("BOUND INCREASED TO: " + bound);
+                    console.log("BOUND INCREASED TO: " + bound);
                     continue;
                 }
                 break;
@@ -358,9 +376,10 @@ var V7Z3T5 = function () {
                     if (lc.equalPoints(self.oldpos, self.pos) && lc.equalPoints(self.pos, nextMove))
                         continue;
 
-                    if (lc.validVisibleLine(c, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() ||
+                    if (lc.validVisibleLine(tMap, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() ||
                         (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) === selfindex))) {
                         distance = map.distance(startingNode.getCenter(), nextMove);
+                        //if (distance < 0) distance = 0;
 
                         let node = new Node();
                         node.initialize(nextMove, startingNode, distance);
@@ -381,13 +400,16 @@ var V7Z3T5 = function () {
                     }
                 }
             }
-            sortList(validNodes);
+            sortList(validNodes, !isFinishNodeFound);
+            if(validNodes[0].getDistance() <= 0){
+                map.reInitialize(self.pos);
+            }
 
             if (timeLeft() < 51 || validNodes.length === 1) {
                 break;
             }
-            if (validNodes.length > 1000) {
-                validNodes = validNodes.splice(0, 750);
+            if (validNodes.length > 1500) {
+                validNodes = validNodes.splice(0, 1250);
             }
         }
 
