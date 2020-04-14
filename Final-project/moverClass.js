@@ -74,7 +74,8 @@ var V7Z3T5 = function () {
 
         let _sizeX, _sizeY, _matrix;
         let _r;
-        let _aMargin = [];
+        let _aMargins = [];
+        let _aFinishes = [];
 
         this.initialize = function (c, self) {
             _sizeX = c.length;
@@ -111,14 +112,20 @@ var V7Z3T5 = function () {
                 const act = prQueue.shift();
                 let newNodes = stateTransition(act);
                 for (let i = 0; i < newNodes.length; i++) {
-                    if (isUndefined(_matrix[newNodes[i].x][newNodes[i].y].getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargin.includes(act)) {
-                        _aMargin.push(act);
-                    } else if (_matrix[newNodes[i].x][newNodes[i].y].getT() >= 0) {
+                    let mElement = _matrix[newNodes[i].x][newNodes[i].y];
+
+                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
+                        _aMargins.push(act);
+                    } else if (mElement.getT() >= 0) {
                         newNodes[i].cost = act.cost + 1;
                         if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
                             !isInMatrixWithLEValue(newNodes[i])) {
                             prQueue.push(newNodes[i]);
-                            _matrix[newNodes[i].x][newNodes[i].y].setV(newNodes[i].cost);
+
+                            mElement.setV(newNodes[i].cost);
+                            if(mElement.getT() === _finishPositionValue && !_aFinishes.includes(_aMargins[i])){
+                                _aFinishes.push(newNodes[i]);
+                            }
                         }
                     } else {
                         _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
@@ -139,22 +146,26 @@ var V7Z3T5 = function () {
 
         let calculateVs = function(){
             let aNewMargin = [];
-            for(let i = 0; i < _aMargin.length; i++){
-                let newNodes = stateTransition(_aMargin[i]);
+            for(let i = 0; i < _aMargins.length; i++){
+                let newNodes = stateTransition(_aMargins[i]);
                 for (let j = 0; j < newNodes.length; j++) {
-                    newNodes[j].cost = _aMargin[i].cost + 1;
+                    newNodes[j].cost = _aMargins[i].cost + 1;
                     let mElement = _matrix[newNodes[j].x][newNodes[j].y];
-                    if(isUndefined(mElement.getT()) && !aNewMargin.includes(_aMargin[i])){
-                        aNewMargin.push(_aMargin[i]);
+                    if(isUndefined(mElement.getT()) && !aNewMargin.includes(_aMargins[i])){
+                        aNewMargin.push(_aMargins[i]);
                         continue;
                     }
 
                     if(mElement.getT() >= 0) {
-                        if (isUndefined(mElement.getV()) || mElement.getV() > _aMargin[i].cost + 1) {
-                            if (!isMemberWithLEValue(_aMargin, newNodes[j]) &&
+                        if (isUndefined(mElement.getV()) || mElement.getV() > _aMargins[i].cost + 1) {
+                            if (!isMemberWithLEValue(_aMargins, newNodes[j]) &&
                                 !isInMatrixWithLEValue(newNodes[j])) {
-                                _aMargin.push(newNodes[j]);
+                                _aMargins.push(newNodes[j]);
                                 mElement.setV(newNodes[j].cost);
+
+                                if(mElement.getT() === _finishPositionValue && !_aFinishes.includes(_aMargins[i])){
+                                    _aFinishes.push(newNodes[j]);
+                                }
                             }
                         }
                     } else{
@@ -162,7 +173,7 @@ var V7Z3T5 = function () {
                     }
                 }
             }
-            _aMargin = aNewMargin;
+            _aMargins = aNewMargin;
 
 
             //TOREMOVE
@@ -247,10 +258,60 @@ var V7Z3T5 = function () {
             return tMap;
         };
 
+        let shortestStraightPath = function(a,b){
+            return Math.sqrt(Math.pow(a.x-b.x, 2) + Math.pow(a.y-b.y, 2));
+        }
+
         this.reInitialize = function(self){
-            // margin kezdettel addig, ameddig ameddig el nem érjük a self-et.
-            // innentől a sort megfordul
-            //initialCalculateVs(_aMargin[0], _matrix);
+            let startingPoint;
+            let array;
+
+            if(_aFinishes.length > 0) {
+                array = _aFinishes;
+            }else{
+                array = _aMargins;
+            }
+            startingPoint = array[0];
+            array.forEach(function (item) {
+                if (shortestStraightPath(self, item) < shortestStraightPath(self, startingPoint))
+                    startingPoint = item;
+            }.bind(this));
+
+            let startingState = {
+                x: startingPoint.x,
+                y: startingPoint.y,
+                cost: 0
+            }
+            for(let i = 0; i < _sizeX; i++){
+                for (let j = 0; j < _sizeY; j++)
+                    if(_matrix[i][j].getT() >= 0)
+                        _matrix[i][j].setV(Number.POSITIVE_INFINITY);
+            }
+
+            _matrix[startingState.x][startingState.y].setV(0);
+
+            let prQueue = [];
+            prQueue.push(startingState);
+            while (prQueue.length > 0) {
+                const act = prQueue.shift();
+                let newNodes = stateTransition(act);
+                for (let i = 0; i < newNodes.length; i++) {
+                    let mElement = _matrix[newNodes[i].x][newNodes[i].y];
+
+                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
+                        _aMargins.push(act);
+                    } else if (mElement.getT() >= 0) {
+                        newNodes[i].cost = act.cost + 1;
+                        if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
+                            !isInMatrixWithLEValue(newNodes[i])) {
+                            mElement.setV(newNodes[i].cost);
+                            prQueue.push(newNodes[i]);
+                        }
+                    } else {
+                        _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
+                    }
+                }
+            }
         };
 
     }
@@ -260,6 +321,7 @@ var V7Z3T5 = function () {
     let bound;
     let timeLimit;
     const initLimit = 10000, moveLimit = 1000;
+    let reinitialized = false;
 
     // HELPER FUNCTIONS
     let inBound = function (node, bound) {
@@ -287,10 +349,10 @@ var V7Z3T5 = function () {
                 }
 
                 if (a.h() > b.h()) {
-                    return -1;
+                    return (reinitialized ? 1: -1);
                 }
                 if (a.h() < b.h()) {
-                    return 1;
+                    return (reinitialized ? -1: 1);
                 }
                 return 0;
             }
@@ -403,6 +465,7 @@ var V7Z3T5 = function () {
             sortList(validNodes, !isFinishNodeFound);
             if(validNodes[0].getDistance() <= 0){
                 map.reInitialize(self.pos);
+                reinitialized = true;
             }
 
             if (timeLeft() < 51 || validNodes.length === 1) {
