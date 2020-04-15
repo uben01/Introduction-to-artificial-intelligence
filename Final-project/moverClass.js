@@ -1,9 +1,33 @@
+/**
+ * @typedef Coordinate
+ * @type Object
+ * @property {number} x - X coordinate
+ * @property {number} y - Y coordinate
+ * @property {?number} cost - Cost of getting there
+ */
+ /**
+ * @typedef PlayerData
+ * @type Object
+ * @property oldpos {Coordinate} - Last position of the player
+ * @property pos {Coordinate} - Current position of the player
+ * @property penalty {number} - Turns left from penalty
+ */
 var V7Z3T5 = function () {
     // HELPER CLASSES
 
+    /**
+     * These nodes contains the information of various steps.
+     * @class
+     */
     function Node() {
         let _center, _distance, _stepsTaken, _firstNode, _velocity;
 
+        /**
+         *
+         * @param center {Coordinate} - It would be center if we took this one step
+         * @param prev {Node} - Reference to the previous node
+         * @param nowDistance {number} - The calculated distance to reach the node
+         */
         this.initialize = function (center, prev, nowDistance) {
             _center = center;
             _distance = nowDistance;
@@ -23,47 +47,106 @@ var V7Z3T5 = function () {
             }
         };
 
+        /**
+         * Calculates the heuristic value of a node
+         * @returns {number}
+         */
         this.h = function () {
             return _distance / _stepsTaken;
         };
 
+        /**
+         * Returns with the center of the node
+         * @returns {Coordinate}
+         */
         this.getCenter = function () {
             return _center;
         };
+        /**
+         * Returns with the distance of the node
+         * @returns {number}
+         */
         this.getDistance = function () {
             return _distance;
         };
+        /**
+         * Returns with the steps taken to get to this node
+         * @returns {number}
+         */
         this.getStepsTaken = function () {
             return _stepsTaken;
         };
+        /**
+         * Returns with the first node led to this place
+         * @returns {Node}
+         */
         this.getFirstNode = function () {
             return _firstNode;
         };
+        /**
+         * Returns with the velocity of the object which gets here
+         * @returns {{x: number, y: number}}
+         */
         this.getVelocity = function () {
             return _velocity;
         };
+
+        /**
+         * Sets the velocity of the node
+         * @param velocity {number}
+         */
         this.setVelocity = function (velocity) {
             _velocity = velocity;
         };
+        /**
+         * Sets the first node of the chain containing this node
+         * @param firstNode {Node}
+         */
         this.setFirstNode = function (firstNode) {
             _firstNode = firstNode;
         };
     }
 
+    /**
+     * The Map contains the explored parts of the "world"
+     * @class
+     */
     function Map() {
+        /**
+         * A spot is one point in the map. It consists of a V and a T. V is for value, T is for type.
+         * @class
+         * @constructor
+         * @param t {number} - The initial (and constant) T value of the spot
+         */
         function Spot(t) {
             this._v = undefined;
             this._t = t;
 
+            /**
+             * Returns with the type of the spot
+             * @returns {number}
+             */
             this.getT = function () {
                 return this._t;
             }
+            /**
+             * Returns with the heuristic value of the spot
+             * @returns {number}
+             */
             this.getV = function () {
                 return this._v;
             }
+            /**
+             * Sets the type of the spot (use in case the initialization couldn't set it)
+             * @param t {number}
+             */
             this.setT = function (t) {
                 this._t = t;
             }
+            /**
+             * Sets the heuristic value of the
+             * @param v {number}
+             */
             this.setV = function (v) {
                 this._v = v;
             }
@@ -77,6 +160,11 @@ var V7Z3T5 = function () {
         let _aMargins = [];
         let _aFinishes = [];
 
+        /**
+         *
+         * @param c{number[][]} - Contains the initially visible parts of the map
+         * @param self {{x: number, y: number}} - The player's coordinates
+         */
         this.initialize = function (c, self) {
             _sizeX = c.length;
             _sizeY = c[0].length;
@@ -88,10 +176,15 @@ var V7Z3T5 = function () {
             for (dYp = 0; self.y + dYp < _sizeY && !isUndefined(c[self.x][self.y + dYp]); dYp++) ;
             _r = Math.max(-dXn, dXp, -dYn, dYp) - 1;
 
-            initialCalculateVs(self, c);
+            initialCalculateVs(c, self);
         };
 
-        let initialCalculateVs = function (self, c) {
+        /**
+         *
+         * @param c{number[][]} - Contains the initially visible parts of the map
+         * @param self {{x: number, y: number}} - The player's coordinates
+         */
+        let initialCalculateVs = function (c, self) {
             _matrix = [...Array(_sizeX)].map(() => Array(_sizeY));
 
             for (let x = 0; x < _sizeX; x++)
@@ -117,7 +210,11 @@ var V7Z3T5 = function () {
                     if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
                         _aMargins.push(act);
                     } else if (mElement.getT() >= 0) {
-                        newNodes[i].cost = act.cost + 1;
+                        if(mElement.getT() === _finishPositionValue) {
+                            newNodes[i].cost = Number.POSITIVE_INFINITY;
+                        } else{
+                            newNodes[i].cost = act.cost + 1;
+                        }
                         if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
                             !isInMatrixWithLEValue(newNodes[i])) {
                             prQueue.push(newNodes[i]);
@@ -144,36 +241,48 @@ var V7Z3T5 = function () {
             //TOREMOVE
         };
 
-        let calculateVs = function(){
-            let aNewMargin = [];
+        /**
+         * Function to calculate if the edges can expand. Updates the V properties of the map
+         */
+        let calculateVs = function(pos){
+            let aNewMargins = [];
             for(let i = 0; i < _aMargins.length; i++){
                 let newNodes = stateTransition(_aMargins[i]);
                 for (let j = 0; j < newNodes.length; j++) {
-                    newNodes[j].cost = _aMargins[i].cost + 1;
                     let mElement = _matrix[newNodes[j].x][newNodes[j].y];
-                    if(isUndefined(mElement.getT()) && !aNewMargin.includes(_aMargins[i])){
-                        aNewMargin.push(_aMargins[i]);
+
+                    if(isUndefined(mElement.getT()) && !aNewMargins.includes(_aMargins[i])){
+                        aNewMargins.push(_aMargins[i]);
                         continue;
                     }
 
                     if(mElement.getT() >= 0) {
-                        if (isUndefined(mElement.getV()) || mElement.getV() > _aMargins[i].cost + 1) {
+                        newNodes[j].cost = _aMargins[i].cost + 1;
+
+                        if (isUndefined(mElement.getV()) || mElement.getV() > newNodes[j].cost) {
                             if (!isMemberWithLEValue(_aMargins, newNodes[j]) &&
                                 !isInMatrixWithLEValue(newNodes[j])) {
+                                if(mElement.getT() === _finishPositionValue){
+                                    newNodes[j].cost = (reinitialized ? 0 : Number.POSITIVE_INFINITY);
+                                    if(!_aFinishes.includes(newNodes[j])){
+                                        _aFinishes.push(newNodes[j]);
+                                    }
+                                }
+
                                 _aMargins.push(newNodes[j]);
                                 mElement.setV(newNodes[j].cost);
-
-                                if(mElement.getT() === _finishPositionValue && !_aFinishes.includes(_aMargins[i])){
-                                    _aFinishes.push(newNodes[j]);
-                                }
                             }
                         }
-                    } else{
+                    } else if(mElement.getT() < 0){
                         mElement.setV(_blockerPenalty);
                     }
                 }
             }
-            _aMargins = aNewMargin;
+            if(_aMargins !== aNewMargins){
+                _aMargins = aNewMargins;
+                if(reinitialized)
+                    map.reInitialize(pos);
+            }
 
 
             //TOREMOVE
@@ -187,7 +296,12 @@ var V7Z3T5 = function () {
             }
             //TOREMOVE
         }
-
+        /**
+         * Checks if the node can be found in the list with less or equal value
+         * @param list {Coordinate[]} -
+         * @param node {Coordinate}
+         * @returns {boolean}
+         */
         let isMemberWithLEValue = function (list, node) {
             for (let i = 0; i < list.length; i++) {
                 if (lc.equalPoints(list[i], node)) {
@@ -199,10 +313,20 @@ var V7Z3T5 = function () {
             return false;
         };
 
+        /**
+         * Checks if the given node's V value is smaller then the recalculated cost
+         * @param node {Coordinate}
+         * @returns {boolean}
+         */
         let isInMatrixWithLEValue = function (node) {
             return _matrix[node.x][node.y].getV() < node.cost;
         };
 
+        /**
+         * Results in the elements of the 3x3 square around the given node
+         * @param state {Coordinate}
+         * @returns {Coordinate[]}
+         */
         let stateTransition = function (state) {
             let newStates = [];
             for (let i = state.x - 1; i <= state.x + 1; i++) {
@@ -219,14 +343,30 @@ var V7Z3T5 = function () {
             return newStates;
         };
 
+        /**
+         * Checks if the given node is a finish node
+         * @param node {Node}
+         * @returns {boolean}
+         */
         this.isFinish = function (node) {
             return _matrix[node.getCenter().x][node.getCenter().y].getT() === _finishPositionValue;
         };
 
+        /**
+         * Calculates the heuristic value difference between two sports
+         * @param from {Coordinate}
+         * @param to {Coordinate}
+         * @returns {number} - The value difference between the coordinates
+         */
         this.distance = function (from, to) {
             return _matrix[to.x][to.y].getV() - _matrix[from.x][from.y].getV();
         };
 
+        /**
+         * Updates the map around the player
+         * @param c{number[][]} - The map given
+         * @param pos {Coordinate} - The player's position
+         */
         this.updateMap = function (c, pos) {
             let p = {};
             for (let x = -_r; x <= _r; x++) {
@@ -245,9 +385,13 @@ var V7Z3T5 = function () {
                 }
             }
 
-            calculateVs();
+            calculateVs(pos);
         };
 
+        /**
+         * Gets the map's T values, for API purposes
+         * @returns {number[][]}
+         */
         this.getTMap = function(){
             let tMap = [...Array(_sizeX)].map(() => Array(_sizeY));
             for(let i = 0; i < _sizeX; i++){
@@ -258,11 +402,21 @@ var V7Z3T5 = function () {
             return tMap;
         };
 
+        /**
+         * Calculates the staright line distance between two points
+         * @param a {Coordinate}
+         * @param b {Coordinate}
+         * @returns {number}
+         */
         let shortestStraightPath = function(a,b){
             return Math.sqrt(Math.pow(a.x-b.x, 2) + Math.pow(a.y-b.y, 2));
         }
 
-        this.reInitialize = function(self){
+        /**
+         * Reinitialize the map. Searches for the closest margin or finish line
+         * @param pos {Coordinate} - The coordinates of the player
+         */
+        this.reInitialize = function(pos){
             let startingPoint;
             let array;
 
@@ -273,7 +427,7 @@ var V7Z3T5 = function () {
             }
             startingPoint = array[0];
             array.forEach(function (item) {
-                if (shortestStraightPath(self, item) < shortestStraightPath(self, startingPoint))
+                if (shortestStraightPath(pos, item) < shortestStraightPath(pos, startingPoint))
                     startingPoint = item;
             }.bind(this));
 
@@ -304,10 +458,14 @@ var V7Z3T5 = function () {
                         newNodes[i].cost = act.cost + 1;
                         if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
                             !isInMatrixWithLEValue(newNodes[i])) {
+                            if(mElement.getT() === _finishPositionValue){
+                                newNodes[i].cost = (reinitialized ? 0 : Number.POSITIVE_INFINITY);
+                            }
+
                             mElement.setV(newNodes[i].cost);
                             prQueue.push(newNodes[i]);
                         }
-                    } else {
+                    } else if(mElement.getT() < 0)  {
                         _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
                     }
                 }
@@ -324,42 +482,63 @@ var V7Z3T5 = function () {
     let reinitialized = false;
 
     // HELPER FUNCTIONS
+    /**
+     * Checks if the given node is in the given bound
+     * @param node {Node}
+     * @param bound {number}
+     * @returns {boolean}
+     */
     let inBound = function (node, bound) {
         return node.getStepsTaken() < bound;
     };
 
+    /**
+     * Checks if given p is undefined
+     * @param p {*}
+     * @returns {boolean}
+     */
     let isUndefined = function (p) {
         return typeof p === "undefined";
     };
 
+    /**
+     * Resets the bound to a constant. It's 4 at the moment, but can be changed.
+     */
     let resetBound = function () {
         bound = 4;
     };
 
+    /**
+     * Sorts the list depend on it was reinitialized or not
+     * @param list {Node[]}
+     * @returns {Node[]}
+     */
     let sortList = function (list) {
-        let fnSort = function (a, b) {
-                if (map.isFinish(a) || map.isFinish(b)) {
-                    if (!map.isFinish(a)) {
-                        return 1;
-                    }
-                    if (!map.isFinish(b)) {
-                        return -1;
-                    }
-                    return 0;
+        return list.sort(function (a, b) {
+            if (map.isFinish(a) || map.isFinish(b)) {
+                if (!map.isFinish(a)) {
+                    return 1;
                 }
-
-                if (a.h() > b.h()) {
-                    return (reinitialized ? 1: -1);
-                }
-                if (a.h() < b.h()) {
-                    return (reinitialized ? -1: 1);
+                if (!map.isFinish(b)) {
+                    return -1;
                 }
                 return 0;
             }
 
-        return list.sort(fnSort.bind(this));
+            if (a.h() > b.h()) {
+                return (reinitialized ? 1: -1);
+            }
+            if (a.h() < b.h()) {
+                return (reinitialized ? -1: 1);
+            }
+            return 0;
+        }.bind(this))
     };
 
+    /**
+     * Return how much time is left from the limit
+     * @returns {number}
+     */
     let timeLeft = function () {
         return timeLimit - Date.now();
     };
@@ -368,6 +547,12 @@ var V7Z3T5 = function () {
     let _tdraw;
 
     // API FUNCTIONS
+    /**
+     * API function to initialize the environment
+     * @param c {number[][]}
+     * @param playerdata {PlayerData}
+     * @param selfindex {number}
+     */
     this.init = function (c, playerdata, selfindex, tdraw /*//TOREMOVE*/) {
 
         timeLimit = Date.now() + initLimit;
@@ -379,6 +564,13 @@ var V7Z3T5 = function () {
         console.log("INIT TIME LIMIT: ", timeLeft());
     };
 
+    /**
+     * API function to calculate each movement
+     * @param c {number[][]}
+     * @param playerdata {PlayerData[]}
+     * @param selfindex {number}
+     * @returns {{x: number, y: number}}
+     */
     this.movefunction = function (c, playerdata, selfindex) {
 
         timeLimit = Date.now() + moveLimit;
@@ -441,7 +633,6 @@ var V7Z3T5 = function () {
                     if (lc.validVisibleLine(tMap, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() ||
                         (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) === selfindex))) {
                         distance = map.distance(startingNode.getCenter(), nextMove);
-                        //if (distance < 0) distance = 0;
 
                         let node = new Node();
                         node.initialize(nextMove, startingNode, distance);
@@ -451,7 +642,7 @@ var V7Z3T5 = function () {
                         validNodes.push(node);
                         if (map.isFinish(node)) {
                             isFinishNodeFound = true;
-                            //bound = node.getStepsTaken();
+                            bound = node.getStepsTaken();
                             validNodes = validNodes.filter(
                                 value => (
                                     value.getStepsTaken() < bound ||
@@ -463,7 +654,7 @@ var V7Z3T5 = function () {
                 }
             }
             sortList(validNodes, !isFinishNodeFound);
-            if(validNodes[0].getDistance() <= 0){
+            if(!reinitialized ? (validNodes[0].getDistance() < 1) : validNodes[0].getDistance() > -1){
                 map.reInitialize(self.pos);
                 reinitialized = true;
             }
@@ -486,7 +677,5 @@ var V7Z3T5 = function () {
         }
         console.log("MOVE TIME LIMIT: ", timeLeft());
         return move;
-
-
     };
 };
