@@ -187,7 +187,7 @@
                 .attr("x", coord.y * au)
                 .attr("fill", "orange")
                 .attr("font-size", 10)
-                .text(weight >= 1000 ? "o" : weight);
+                .text(weight >= 1000 ? (weight == Number.POSITIVE_INFINITY ? "*" : "o") : weight);
 
         }
         this.clearWeights = function(){
@@ -202,6 +202,7 @@
         }
 
         this.movePlayer = function(pindex, dest, validmovement){
+            drawHorizon(players[pindex]);
             players[pindex].crosses.push(drawCross(players[pindex]));
             players[pindex].ppoint.transition().duration(duration)
                 .attr("cx", dest.y*au)
@@ -226,7 +227,6 @@
                 players[pindex].nextmovesigns.transition().duration(duration)
                     .style("opacity",0);
             }
-            drawHorizon(players[pindex]);
         }
 
         this.restorePlayer = function(pindex){
