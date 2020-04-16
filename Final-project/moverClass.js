@@ -3,9 +3,9 @@
  * @type Object
  * @property {number} x - X coordinate
  * @property {number} y - Y coordinate
- * @property {?number} cost - Cost of getting there
+ * @property {number} ?cost - Cost of getting there
  */
- /**
+/**
  * @typedef PlayerData
  * @type Object
  * @property oldpos {Coordinate} - Last position of the player
@@ -20,7 +20,7 @@ var V7Z3T5 = function () {
      * @class
      */
     function Node() {
-        let _center, _distance, _stepsTaken, _firstNode, _velocity;
+        let _center, _distance, _stepsTaken, _firstNode, _velocity, _endNode;
 
         /**
          *
@@ -34,6 +34,7 @@ var V7Z3T5 = function () {
             _stepsTaken = 0;
             _firstNode = null;
             _velocity = {};
+            _endNode = false;
 
             if (prev) {
                 _distance += prev.getDistance();
@@ -46,6 +47,21 @@ var V7Z3T5 = function () {
                 };
             }
         };
+        /**
+         * Return true, if the node is on the margin
+         * @returns {boolean}
+         */
+        this.getEndNode = function () {
+            return _endNode;
+        }
+
+        /**
+         * Sets the node's endNode property.
+         * @param endNode {boolean}
+         */
+        this.setEndNode = function (endNode) {
+            _endNode = endNode;
+        }
 
         /**
          * Calculates the heuristic value of a node
@@ -210,9 +226,9 @@ var V7Z3T5 = function () {
                     if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
                         _aMargins.push(act);
                     } else if (mElement.getT() >= 0) {
-                        if(mElement.getT() === _finishPositionValue) {
+                        if (mElement.getT() === _finishPositionValue) {
                             newNodes[i].cost = Number.POSITIVE_INFINITY;
-                        } else{
+                        } else {
                             newNodes[i].cost = act.cost + 1;
                         }
                         if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
@@ -220,7 +236,7 @@ var V7Z3T5 = function () {
                             prQueue.push(newNodes[i]);
 
                             mElement.setV(newNodes[i].cost);
-                            if(mElement.getT() === _finishPositionValue && !_aFinishes.includes(_aMargins[i])){
+                            if (mElement.getT() === _finishPositionValue && !_aFinishes.includes(_aMargins[i])) {
                                 _aFinishes.push(newNodes[i]);
                             }
                         }
@@ -244,27 +260,27 @@ var V7Z3T5 = function () {
         /**
          * Function to calculate if the edges can expand. Updates the V properties of the map
          */
-        let calculateVs = function(pos){
+        let calculateVs = function (pos) {
             let aNewMargins = [];
-            for(let i = 0; i < _aMargins.length; i++){
+            for (let i = 0; i < _aMargins.length; i++) {
                 let newNodes = stateTransition(_aMargins[i]);
                 for (let j = 0; j < newNodes.length; j++) {
                     let mElement = _matrix[newNodes[j].x][newNodes[j].y];
 
-                    if(isUndefined(mElement.getT()) && !aNewMargins.includes(_aMargins[i])){
+                    if (isUndefined(mElement.getT()) && !aNewMargins.includes(_aMargins[i])) {
                         aNewMargins.push(_aMargins[i]);
                         continue;
                     }
 
-                    if(mElement.getT() >= 0) {
+                    if (mElement.getT() >= 0) {
                         newNodes[j].cost = _aMargins[i].cost + 1;
 
                         if (isUndefined(mElement.getV()) || mElement.getV() > newNodes[j].cost) {
                             if (!isMemberWithLEValue(_aMargins, newNodes[j]) &&
                                 !isInMatrixWithLEValue(newNodes[j])) {
-                                if(mElement.getT() === _finishPositionValue){
+                                if (mElement.getT() === _finishPositionValue) {
                                     newNodes[j].cost = (reinitialized ? 0 : Number.POSITIVE_INFINITY);
-                                    if(!_aFinishes.includes(newNodes[j])){
+                                    if (!_aFinishes.includes(newNodes[j])) {
                                         _aFinishes.push(newNodes[j]);
                                     }
                                 }
@@ -273,14 +289,14 @@ var V7Z3T5 = function () {
                                 mElement.setV(newNodes[j].cost);
                             }
                         }
-                    } else if(mElement.getT() < 0){
+                    } else if (mElement.getT() < 0) {
                         mElement.setV(_blockerPenalty);
                     }
                 }
             }
-            if(_aMargins !== aNewMargins){
+            if (_aMargins !== aNewMargins) {
                 _aMargins = aNewMargins;
-                if(reinitialized)
+                if (reinitialized)
                     map.reInitialize(pos);
             }
 
@@ -392,10 +408,10 @@ var V7Z3T5 = function () {
          * Gets the map's T values, for API purposes
          * @returns {number[][]}
          */
-        this.getTMap = function(){
+        this.getTMap = function () {
             let tMap = [...Array(_sizeX)].map(() => Array(_sizeY));
-            for(let i = 0; i < _sizeX; i++){
-                for (let j = 0; j < _sizeY; j++){
+            for (let i = 0; i < _sizeX; i++) {
+                for (let j = 0; j < _sizeY; j++) {
                     tMap[i][j] = _matrix[i][j].getT();
                 }
             }
@@ -403,26 +419,34 @@ var V7Z3T5 = function () {
         };
 
         /**
+         * Results in the margin nodes
+         * @returns {Coordinate[]}
+         */
+        this.getMargin = function () {
+            return _aMargins;
+        }
+
+        /**
          * Calculates the staright line distance between two points
          * @param a {Coordinate}
          * @param b {Coordinate}
          * @returns {number}
          */
-        let shortestStraightPath = function(a,b){
-            return Math.sqrt(Math.pow(a.x-b.x, 2) + Math.pow(a.y-b.y, 2));
+        let shortestStraightPath = function (a, b) {
+            return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
         }
 
         /**
          * Reinitialize the map. Searches for the closest margin or finish line
          * @param pos {Coordinate} - The coordinates of the player
          */
-        this.reInitialize = function(pos){
+        this.reInitialize = function (pos) {
             let startingPoint;
             let array;
 
-            if(_aFinishes.length > 0) {
+            if (_aFinishes.length > 0) {
                 array = _aFinishes;
-            }else{
+            } else {
                 array = _aMargins;
             }
             startingPoint = array[0];
@@ -436,9 +460,9 @@ var V7Z3T5 = function () {
                 y: startingPoint.y,
                 cost: 0
             }
-            for(let i = 0; i < _sizeX; i++){
+            for (let i = 0; i < _sizeX; i++) {
                 for (let j = 0; j < _sizeY; j++)
-                    if(_matrix[i][j].getT() >= 0)
+                    if (_matrix[i][j].getT() >= 0)
                         _matrix[i][j].setV(Number.POSITIVE_INFINITY);
             }
 
@@ -458,14 +482,14 @@ var V7Z3T5 = function () {
                         newNodes[i].cost = act.cost + 1;
                         if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
                             !isInMatrixWithLEValue(newNodes[i])) {
-                            if(mElement.getT() === _finishPositionValue){
+                            if (mElement.getT() === _finishPositionValue) {
                                 newNodes[i].cost = (reinitialized ? 0 : Number.POSITIVE_INFINITY);
                             }
 
                             mElement.setV(newNodes[i].cost);
                             prQueue.push(newNodes[i]);
                         }
-                    } else if(mElement.getT() < 0)  {
+                    } else if (mElement.getT() < 0) {
                         _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
                     }
                 }
@@ -526,10 +550,10 @@ var V7Z3T5 = function () {
             }
 
             if (a.h() > b.h()) {
-                return (reinitialized ? 1: -1);
+                return (reinitialized ? 1 : -1);
             }
             if (a.h() < b.h()) {
-                return (reinitialized ? -1: 1);
+                return (reinitialized ? -1 : 1);
             }
             return 0;
         }.bind(this))
@@ -600,14 +624,20 @@ var V7Z3T5 = function () {
 
         let index = 0;
         let isFinishNodeFound = false;
+        let extendBound = true;
         while (validNodes.length) {
             if (index < validNodes.length) {
                 if (!inBound(validNodes[index], bound) || map.isFinish(validNodes[index])) {
                     index++;
                     continue;
                 }
+                if (validNodes[index].getEndNode()) {
+                    index++;
+                    extendBound = false;
+                    continue;
+                }
             } else {
-                if (!isFinishNodeFound) {
+                if (!isFinishNodeFound && extendBound) {
                     bound++;
                     index = 0;
                     console.log("BOUND INCREASED TO: " + bound);
@@ -615,6 +645,7 @@ var V7Z3T5 = function () {
                 }
                 break;
             }
+            extendBound = true;
 
             let startingNode = validNodes.splice(index, 1)[0];
             index = 0;
@@ -640,6 +671,10 @@ var V7Z3T5 = function () {
                             node.setFirstNode(node);
                         }
                         validNodes.push(node);
+                        if (!isUndefined(map.getMargin().find(({x, y}) => (x === validNodes[index].getCenter().x && y === validNodes[index].getCenter().y)))) {
+                            node.setEndNode(true);
+                        }
+
                         if (map.isFinish(node)) {
                             isFinishNodeFound = true;
                             bound = node.getStepsTaken();
@@ -654,7 +689,7 @@ var V7Z3T5 = function () {
                 }
             }
             sortList(validNodes, !isFinishNodeFound);
-            if(!reinitialized ? (validNodes[0].getDistance() < 1) : validNodes[0].getDistance() > -1){
+            if ((!reinitialized ? (validNodes[0].getDistance() < 1) : validNodes[0].getDistance() > -1) && validNodes[0].getStepsTaken() !== 1) {
                 map.reInitialize(self.pos);
                 reinitialized = true;
             }
