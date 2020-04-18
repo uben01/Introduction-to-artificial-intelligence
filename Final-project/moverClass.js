@@ -3,7 +3,7 @@
  * @type Object
  * @property {number} x - X coordinate
  * @property {number} y - Y coordinate
- * @property {number} ?cost - Cost of getting there
+ * @property {?number} cost - Cost of getting there
  */
 /**
  * @typedef PlayerData
@@ -20,10 +20,11 @@ var V7Z3T5 = function () {
      * @class
      */
     function Node() {
-        let _center, _distance, _stepsTaken, _firstNode, _velocity, _endNode;
+
+        let _center, _distance, _stepsTaken, _firstNode, _velocity;
 
         /**
-         *
+         * Initializes the node
          * @param center {Coordinate} - It would be center if we took this one step
          * @param prev {Node} - Reference to the previous node
          * @param nowDistance {number} - The calculated distance to reach the node
@@ -34,7 +35,6 @@ var V7Z3T5 = function () {
             _stepsTaken = 0;
             _firstNode = null;
             _velocity = {};
-            _endNode = false;
 
             if (prev) {
                 _distance += prev.getDistance();
@@ -47,27 +47,12 @@ var V7Z3T5 = function () {
                 };
             }
         };
-        /**
-         * Return true, if the node is on the margin
-         * @returns {boolean}
-         */
-        this.getEndNode = function () {
-            return _endNode;
-        }
-
-        /**
-         * Sets the node's endNode property.
-         * @param endNode {boolean}
-         */
-        this.setEndNode = function (endNode) {
-            _endNode = endNode;
-        }
 
         /**
          * Calculates the heuristic value of a node
          * @returns {number}
          */
-        this.h = function () {
+        this.getH = function () {
             return _distance / _stepsTaken;
         };
 
@@ -106,7 +91,6 @@ var V7Z3T5 = function () {
         this.getVelocity = function () {
             return _velocity;
         };
-
         /**
          * Sets the velocity of the node
          * @param velocity {number}
@@ -193,6 +177,66 @@ var V7Z3T5 = function () {
             _r = Math.max(-dXn, dXp, -dYn, dYp) - 1;
 
             initialCalculateVs(c, self);
+        };
+
+        /**
+         * Reinitialize the map. Searches for the closest margin or finish line
+         * @param pos {Coordinate} - The coordinates of the player
+         */
+        this.reInitialize = function (pos) {
+            let startingPoint;
+            let array;
+
+            if (_aFinishes.length > 0) {
+                array = _aFinishes;
+            } else {
+                array = _aMargins;
+            }
+            startingPoint = array[0];
+            array.forEach(function (item) {
+                if (this.distance(pos, item) < this.distance(pos, startingPoint))
+                    startingPoint = item;
+            }.bind(this));
+
+            let startingState = {
+                x: startingPoint.x,
+                y: startingPoint.y,
+                cost: 0
+            }
+            for (let i = 0; i < _sizeX; i++) {
+                for (let j = 0; j < _sizeY; j++)
+                    if (_matrix[i][j].getT() >= 0)
+                        _matrix[i][j].setV(Number.POSITIVE_INFINITY);
+            }
+
+            _matrix[startingState.x][startingState.y].setV(0);
+
+            let prQueue = [];
+            prQueue.push(startingState);
+            while (prQueue.length > 0) {
+                const act = prQueue.shift();
+                let newNodes = stateTransition(act);
+                for (let i = 0; i < newNodes.length; i++) {
+                    let mElement = _matrix[newNodes[i].x][newNodes[i].y];
+
+                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
+                        _aMargins.push(act);
+                    } else if (mElement.getT() >= 0) {
+                        newNodes[i].cost = act.cost + 1;
+                        if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
+                            !isInMatrixWithLEValue(newNodes[i])) {
+                            if (mElement.getT() === _finishPositionValue) {
+                                newNodes[i].cost = 0;
+                            }
+
+                            mElement.setV(newNodes[i].cost);
+                            prQueue.push(newNodes[i]);
+                        }
+                    } else if (mElement.getT() < 0) {
+                        _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
+                    }
+                }
+            }
         };
 
         /**
@@ -417,85 +461,6 @@ var V7Z3T5 = function () {
             }
             return tMap;
         };
-
-        /**
-         * Results in the margin nodes
-         * @returns {Coordinate[]}
-         */
-        this.getMargin = function () {
-            return _aMargins;
-        }
-
-        /**
-         * Calculates the staright line distance between two points
-         * @param a {Coordinate}
-         * @param b {Coordinate}
-         * @returns {number}
-         */
-        let shortestStraightPath = function (a, b) {
-            return Math.sqrt(Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2));
-        }
-
-        /**
-         * Reinitialize the map. Searches for the closest margin or finish line
-         * @param pos {Coordinate} - The coordinates of the player
-         */
-        this.reInitialize = function (pos) {
-            let startingPoint;
-            let array;
-
-            if (_aFinishes.length > 0) {
-                array = _aFinishes;
-            } else {
-                array = _aMargins;
-            }
-            startingPoint = array[0];
-            array.forEach(function (item) {
-                if (shortestStraightPath(pos, item) < shortestStraightPath(pos, startingPoint))
-                    startingPoint = item;
-            }.bind(this));
-
-            let startingState = {
-                x: startingPoint.x,
-                y: startingPoint.y,
-                cost: 0
-            }
-            for (let i = 0; i < _sizeX; i++) {
-                for (let j = 0; j < _sizeY; j++)
-                    if (_matrix[i][j].getT() >= 0)
-                        _matrix[i][j].setV(Number.POSITIVE_INFINITY);
-            }
-
-            _matrix[startingState.x][startingState.y].setV(0);
-
-            let prQueue = [];
-            prQueue.push(startingState);
-            while (prQueue.length > 0) {
-                const act = prQueue.shift();
-                let newNodes = stateTransition(act);
-                for (let i = 0; i < newNodes.length; i++) {
-                    let mElement = _matrix[newNodes[i].x][newNodes[i].y];
-
-                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
-                        _aMargins.push(act);
-                    } else if (mElement.getT() >= 0) {
-                        newNodes[i].cost = act.cost + 1;
-                        if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
-                            !isInMatrixWithLEValue(newNodes[i])) {
-                            if (mElement.getT() === _finishPositionValue) {
-                                newNodes[i].cost = (reinitialized ? 0 : Number.POSITIVE_INFINITY);
-                            }
-
-                            mElement.setV(newNodes[i].cost);
-                            prQueue.push(newNodes[i]);
-                        }
-                    } else if (mElement.getT() < 0) {
-                        _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
-                    }
-                }
-            }
-        };
-
     }
 
     // STATE VARIABLES
@@ -507,6 +472,14 @@ var V7Z3T5 = function () {
 
     // HELPER FUNCTIONS
     /**
+     * Return how much time is left from the limit
+     * @returns {number}
+     */
+    let timeLeft = function () {
+        return timeLimit - Date.now();
+    };
+
+    /**
      * Checks if the given node is in the given bound
      * @param node {Node}
      * @param bound {number}
@@ -517,19 +490,19 @@ var V7Z3T5 = function () {
     };
 
     /**
+     * Resets the bound to a constant. It's 4 at the moment, but can be changed.
+     */
+    let resetBound = function () {
+        bound = 4;
+    };
+
+    /**
      * Checks if given p is undefined
      * @param p {*}
      * @returns {boolean}
      */
     let isUndefined = function (p) {
         return typeof p === "undefined";
-    };
-
-    /**
-     * Resets the bound to a constant. It's 4 at the moment, but can be changed.
-     */
-    let resetBound = function () {
-        bound = 4;
     };
 
     /**
@@ -549,10 +522,10 @@ var V7Z3T5 = function () {
                 return 0;
             }
 
-            if (a.h() > b.h()) {
+            if (a.getH() > b.getH()) {
                 return (reinitialized ? 1 : -1);
             }
-            if (a.h() < b.h()) {
+            if (a.getH() < b.getH()) {
                 return (reinitialized ? -1 : 1);
             }
             return 0;
@@ -560,11 +533,16 @@ var V7Z3T5 = function () {
     };
 
     /**
-     * Return how much time is left from the limit
-     * @returns {number}
+     * Initializes the starting point for later calculation
+     * @param {Coordinate} nowCenter
+     * @param {Coordinate} nowVelocity
+     * @param {Node[]} validNodes
      */
-    let timeLeft = function () {
-        return timeLimit - Date.now();
+    let initializeStartingPoint = function(nowCenter, nowVelocity, validNodes){
+        let node = new Node();
+        node.initialize(nowCenter, null, 0);
+        node.setVelocity(nowVelocity);
+        validNodes.push(node);
     };
 
     //TOREMOVE
@@ -596,8 +574,8 @@ var V7Z3T5 = function () {
      * @returns {{x: number, y: number}}
      */
     this.movefunction = function (c, playerdata, selfindex) {
-
         timeLimit = Date.now() + moveLimit;
+
         const self = playerdata[selfindex];
 
         const nowVelocity = {
@@ -613,31 +591,20 @@ var V7Z3T5 = function () {
         let tMap = map.getTMap();
 
         let validNodes = [];
-        {
-            // create pseudo node
-            let node = new Node();
-            node.initialize(nowCenter, null, 0);
-            node.setVelocity(nowVelocity);
-            validNodes.push(node);
-        }
+        initializeStartingPoint(nowCenter, nowVelocity, validNodes);
         resetBound();
 
         let index = 0;
         let isFinishNodeFound = false;
-        let extendBound = true;
+        let reinitializedNow = false;
         while (validNodes.length) {
             if (index < validNodes.length) {
                 if (!inBound(validNodes[index], bound) || map.isFinish(validNodes[index])) {
                     index++;
                     continue;
                 }
-                if (validNodes[index].getEndNode()) {
-                    index++;
-                    extendBound = false;
-                    continue;
-                }
             } else {
-                if (!isFinishNodeFound && extendBound) {
+                if (!isFinishNodeFound) {
                     bound++;
                     index = 0;
                     console.log("BOUND INCREASED TO: " + bound);
@@ -645,7 +612,6 @@ var V7Z3T5 = function () {
                 }
                 break;
             }
-            extendBound = true;
 
             let startingNode = validNodes.splice(index, 1)[0];
             index = 0;
@@ -671,9 +637,6 @@ var V7Z3T5 = function () {
                             node.setFirstNode(node);
                         }
                         validNodes.push(node);
-                        if (!isUndefined(map.getMargin().find(({x, y}) => (x === validNodes[index].getCenter().x && y === validNodes[index].getCenter().y)))) {
-                            node.setEndNode(true);
-                        }
 
                         if (map.isFinish(node)) {
                             isFinishNodeFound = true;
@@ -683,15 +646,23 @@ var V7Z3T5 = function () {
                                     value.getStepsTaken() < bound ||
                                     (value.getStepsTaken() === bound && map.isFinish(value))
                                 ));
-
                         }
                     }
                 }
             }
             sortList(validNodes, !isFinishNodeFound);
-            if ((!reinitialized ? (validNodes[0].getDistance() < 1) : validNodes[0].getDistance() > -1) && validNodes[0].getStepsTaken() !== 1) {
+            if (!reinitializedNow && (!reinitialized ? (validNodes[0].getH() < 1) : validNodes[0].getH() > -1)) {
                 map.reInitialize(self.pos);
                 reinitialized = true;
+                reinitializedNow = true;
+
+                validNodes = [];
+                initializeStartingPoint(nowCenter, nowVelocity, validNodes);
+                resetBound();
+
+                index = 0;
+                isFinishNodeFound = false;
+                continue;
             }
 
             if (timeLeft() < 51 || validNodes.length === 1) {
