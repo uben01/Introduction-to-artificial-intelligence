@@ -40,16 +40,16 @@ or when we have to start the cornering.
 In the initializer and mover function we expect the map (`c`), `playerdata`, and the `selfindex`. 
  - The map should be an array of arrays, containing information about the level, we have chosen.
  - Playerdata contains of the players old and new position (thus the velocity, and center)
- - And selfindex is a number. `playerdata[selfindex]` is our representation
+ - And selfindex is a number. `playerdata[selfindex]` is our representation.
 
 For the initializer we have to return within 10 seconds, or we are eliminated. For the mover function
-we've got 1 second to do so, or the caller function will assume the answer as `(0 ; 0)`
+we've got 1 second to do so, or the caller function will assume the answer as `(0 ; 0)`.
 
-The initializer don't have an output, it just have to return in time, however the mover have to return
-with `x` and `y` coordinates. Both coordinates codomain consist of whole numbers in range `[-1 ; 1]`.
+The initializer don't have an output, it just has to return in time, however the mover have to return
+with `x` and `y` coordinates. Both coordinates' codomain consist of whole numbers in range `[-1 ; 1]`.
 
 ### Real world applications
-It's pretty simple. From a self driving car. The only constraint is, the the world have to be known.
+It's pretty simple. From a self driving car. The only constraint is, the world have to be known.
 E.g. the car have to have the map from A to B.
 
 ### Considered algorithms, way of choosing, performance consideration
@@ -57,8 +57,8 @@ In the first try I realised, the 10 seconds of initialize, is more then enough, 
 the whole level. So the only consideration was the mapping search function. I've chosen **UCS**, because
 I have to map the whole stuff and have to know how far away I could be from the closest finish.
 
-The problem was rather the mover function, which only had 1 second. Of course, in that time I can not possible
-calculate all the paths I could take. That's why **IDA&ast;** was chosen. By default I expand 4 node further,
+The problem was rather the mover function, which only had 1 second. Of course, in that time I cannot possible
+calculate all the paths I could take. That's why **IDA&ast;** was chosen. By default, I expand 4 nodes further,
 but if the time is running out, we can shut it down earlier, or if we have got plenty of time, we can expand further.
 
 ### Implementing algorithms myself
@@ -68,7 +68,7 @@ the implementation, but it was a bit different in a lot of aspects, so I've edit
 take in account all the finish nodes.
  - The **IDA&ast;** had a lot more work in the gears. The bound expansion considered the time limit,
 or the bound lowering, in case of a finish node is found.
-    - Moreover I've tried to eliminate as much nodes as possible. About that I write more in the
+    - Moreover, I've tried to eliminate as much nodes as possible. About that I write more in the
     *working process documentation* part of the document.
     
     
@@ -87,10 +87,18 @@ or the bound lowering, in case of a finish node is found.
 ### Improvements
 - [x] Change greedy search to **IDA&ast;**
 - [x] Use heuristic: e.g. **`distance ÷ steps_taken`** 
-- [ ] Try to eliminate as much nodes as we can.
-    - [x] Lower bound if a finish node is found
-    - [x] Every time after a sort, if the `validNodes.length` is greater then 500, cut the elements after the 500th index
-- [x] After every try, check the remaining time. If the time runs out, choose the best option
+- [ ] Try to eliminate as many nodes as we can.
+    - [x] Lower the bound if a finish node is found.
+    - [x] Every time after a sort, if the `validNodes.length` is greater than 1500, cut the elements after the 1250th index
+- [x] After every try, check the remaining time. If the time runs out, choose the best option.
 
-### Multiplayer optimization
-- [ ] If a player stand on a finish node, make it like wall from now on
+### Second round
+
+As now, we cannot see the whole map, I had to change the strategy a bit. 
+
+- The starting point of the UCS became the player
+- The map gained an additional dimension. Now the Type (T) and the Value (V) are both stored differently. When we get to see a node, but no path there yet
+the T can still be set. When the path is reviled the Vs can be calculated too.
+- When the AI can't decide where to go (for example local maximum but no finish), it regenerates the map's V values. 
+- The map's margin points are stored, so we can expand only by these. 
+- I've added JSDoc documentation to the project for later documentation file generation. 
