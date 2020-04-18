@@ -1,1 +1,4 @@
 .idea
+/Final-project/node_modules/
+/Final-project/package.json
+/Final-project/package-lock.json
