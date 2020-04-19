@@ -1,4 +1,11 @@
 /**
+ * TODO: Reconsider EndNode (EN later)
+ * When an EN is found calculate probability of the later spots being wall
+ * Classify these next nodes to ?HI-ME-LO? wall probability
+ * Instead of weights we can show on the map, the classes
+ */
+
+/**
  * @typedef Coordinate
  * @type Object
  * @property {number} x - X coordinate
@@ -21,7 +28,7 @@ var V7Z3T5 = function () {
      */
     function Node() {
 
-        let _center, _distance, _stepsTaken, _firstNode, _velocity;
+        let _center, _distance, _stepsTaken, _firstNode, _velocity, _endNode;
 
         /**
          * Initializes the node
@@ -35,6 +42,7 @@ var V7Z3T5 = function () {
             _stepsTaken = 0;
             _firstNode = null;
             _velocity = {};
+            _endNode = false;
 
             if (prev) {
                 _distance += prev.getDistance();
@@ -55,7 +63,6 @@ var V7Z3T5 = function () {
         this.getH = function () {
             return _distance / _stepsTaken;
         };
-
         /**
          * Returns with the center of the node
          * @returns {Coordinate}
@@ -92,6 +99,13 @@ var V7Z3T5 = function () {
             return _velocity;
         };
         /**
+         * Return true, if the node is on the margin
+         * @returns {boolean}
+         */
+        this.getEndNode = function () {
+            return _endNode;
+        };
+        /**
          * Sets the velocity of the node
          * @param velocity {number}
          */
@@ -104,6 +118,13 @@ var V7Z3T5 = function () {
          */
         this.setFirstNode = function (firstNode) {
             _firstNode = firstNode;
+        };
+        /**
+         * Sets the node's endNode property.
+         * @param endNode {boolean}
+         */
+        this.setEndNode = function (endNode) {
+            _endNode = endNode;
         };
     }
 
@@ -119,8 +140,20 @@ var V7Z3T5 = function () {
          * @param t {number} - The initial (and constant) T value of the spot
          */
         function Spot(t) {
+            /**
+             * Describes the probability of one Spot being wall when undefined
+             * @enum {number}
+             * @readonly
+             */
+            const Prob = {
+                LO: 0,
+                HI: 1,
+                NONE: -1
+            };
+
             this._v = undefined;
             this._t = t;
+            this._prob = Prob.NONE;
 
             /**
              * Returns with the type of the spot
@@ -137,11 +170,19 @@ var V7Z3T5 = function () {
                 return this._v;
             }
             /**
-             * Sets the type of the spot (use in case the initialization couldn't set it)
+             * Returns with the probability class of the spot
+             * @returns {Prob}
+             */
+            this.getProb = function(){
+                return this._prob;
+            }
+            /**
+             * Sets the type of the spot (use in case the initialization couldn't set it), and resets its probability
              * @param t {number}
              */
             this.setT = function (t) {
                 this._t = t;
+                this._prob = Prob.NONE;
             }
             /**
              * Sets the heuristic value of the
@@ -149,6 +190,13 @@ var V7Z3T5 = function () {
              */
             this.setV = function (v) {
                 this._v = v;
+            }
+            /**
+             * Sets the probability class of the spot
+             * @param prob
+             */
+            this.setProb = function (prob) {
+                this._prob = prob;
             }
         }
 
@@ -289,16 +337,6 @@ var V7Z3T5 = function () {
                     }
                 }
             }
-            //TOREMOVE
-            _tdraw.clearWeights();
-            for (let i = 0; i < _sizeX; i++) {
-                for (let j = 0; j < _sizeY; j++) {
-                    if (!isUndefined(_matrix[i][j].getV())) {
-                        _tdraw.drawWeights({x: i, y: j}, _matrix[i][j].getV());
-                    }
-                }
-            }
-            //TOREMOVE
         };
 
         /**
@@ -344,17 +382,6 @@ var V7Z3T5 = function () {
                     map.reInitialize(pos);
             }
 
-
-            //TOREMOVE
-            _tdraw.clearWeights();
-            for (let i = 0; i < _sizeX; i++) {
-                for (let j = 0; j < _sizeY; j++) {
-                    if (!isUndefined(_matrix[i][j].getV())) {
-                        _tdraw.drawWeights({x: i, y: j}, _matrix[i][j].getV());
-                    }
-                }
-            }
-            //TOREMOVE
         }
         /**
          * Checks if the node can be found in the list with less or equal value
@@ -461,6 +488,14 @@ var V7Z3T5 = function () {
             }
             return tMap;
         };
+
+        /**
+         * Results in the margin nodes
+         * @returns {Coordinate[]}
+         */
+        this.getMargin = function () {
+            return _aMargins;
+        };
     }
 
     // STATE VARIABLES
@@ -545,9 +580,6 @@ var V7Z3T5 = function () {
         validNodes.push(node);
     };
 
-    //TOREMOVE
-    let _tdraw;
-
     // API FUNCTIONS
     /**
      * API function to initialize the environment
@@ -555,10 +587,8 @@ var V7Z3T5 = function () {
      * @param playerdata {PlayerData}
      * @param selfindex {number}
      */
-    this.init = function (c, playerdata, selfindex, tdraw /*//TOREMOVE*/) {
-
+    this.init = function (c, playerdata, selfindex) {
         timeLimit = Date.now() + initLimit;
-        _tdraw = tdraw; //TOREMOVE
 
         map = new Map();
         map.initialize(c, playerdata[selfindex].pos);
@@ -597,14 +627,20 @@ var V7Z3T5 = function () {
         let index = 0;
         let isFinishNodeFound = false;
         let reinitializedNow = false;
+        let extendBound = true;
         while (validNodes.length) {
             if (index < validNodes.length) {
                 if (!inBound(validNodes[index], bound) || map.isFinish(validNodes[index])) {
                     index++;
                     continue;
                 }
+                if (validNodes[index].getEndNode()) {
+                    index++;
+                    extendBound = false;
+                    continue;
+                }
             } else {
-                if (!isFinishNodeFound) {
+                if (!isFinishNodeFound && extendBound) {
                     bound++;
                     index = 0;
                     console.log("BOUND INCREASED TO: " + bound);
@@ -612,6 +648,7 @@ var V7Z3T5 = function () {
                 }
                 break;
             }
+            extendBound = true;
 
             let startingNode = validNodes.splice(index, 1)[0];
             index = 0;
@@ -637,6 +674,9 @@ var V7Z3T5 = function () {
                             node.setFirstNode(node);
                         }
                         validNodes.push(node);
+                        if (!isUndefined(map.getMargin().find(({x, y}) => (x === validNodes[index].getCenter().x && y === validNodes[index].getCenter().y)))) {
+                            node.setEndNode(true);
+                        }
 
                         if (map.isFinish(node)) {
                             isFinishNodeFound = true;
@@ -684,4 +724,5 @@ var V7Z3T5 = function () {
         console.log("MOVE TIME LIMIT: ", timeLeft());
         return move;
     };
+
 };

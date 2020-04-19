@@ -49,7 +49,7 @@
         <g id="playernextmoves"/>
 
         <g id="radius" opacity="0.4"/>
-        <g id="weights" />
+        <g id="probs" />
     </svg>
 </div>
 <div class="level-select">
@@ -179,19 +179,24 @@
                 .attr("fill", "black");
         }
 
-        this.drawWeights = function (coord, weight) {
-            d3.select("#weights")
+        this.drawProbs = function (coord, prob) {
+            let t = d3.select("#probs")
                 .append("text")
                 .attr("id", "a" + (coord.x * 100 + coord.y) + "")
                 .attr("y", coord.x * au)
                 .attr("x", coord.y * au)
-                .attr("fill", "orange")
-                .attr("font-size", 10)
-                .text(weight >= 1000 ? (weight == Number.POSITIVE_INFINITY ? "*" : "o") : weight);
+                .attr("font-size", 10);
+            if(prob === 0){
+                t.attr("fill", "green")
+                 .text("LO");
+            } else if(prob === 1){
+                t.attr("fill", "red")
+                 .text("HI");
+            }
 
         }
-        this.clearWeights = function(){
-            d3.select("#weights").html('');
+        this.clearProbs = function(){
+            d3.select("#probs").html('');
         }
 
         this.addPlayer=function(name, pos){
