@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="hu-HU">
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script type="text/javascript" src="https://d3js.org/d3.v3.min.js"></script>
+
+    <script src="moverClass.js"></script>
+    <style>
+        div.manualplay-controlpanel{
+            width: 100px;
+            height: 100px;
+        }
+        div.buttonrow{
+            width: 100%;
+            height: 33px;
+            position: relative;
+        }
+        div.directionarrow{
+            width: 33px;
+            height: 33px;
+        }
+
+        div.mode-select, div.playerpanel-manualplay, div.playerpanel-codeplay, div.manualplay-controlpanel, div.statuspanel{
+            display: none;
+        }
+
+        #playercode{
+            width: 600px;
+            height: 300px;
+        }
+
+        .trackicon{
+            margin: 5px;
+        }
+
+        #statustext{
+            width: 600px;
+            height: 300px;
+        }
+    </style>
+<body>
+<div id="track-wrap" style="width: 800px; height: 500px;">
+    <svg id="trackwrp" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+        <g id="track"></g>
+        <g id="playerlines"></g>
+        <g id="playercrosses"></g>
+        <g id="playerpoints"></g>
+        <g id="playernextmoves"></g>
+    </svg>
+</div>
+<div class="level-select">
+    Kattints a betöltendő pályára!<br>
+</div>
+<div class="mode-select">
+    <button type="button" id="select-manualplay">Manual play</button>
+    <button type="button" id="select-codeplay">Code play</button>
+</div>
+<div class="playerpanel-manualplay">
+    Add new player <br />
+    <input type="text" id="newplayername-manualplay" placeholder="Name" /><button type="button" id="addnewplayer-manualplay">Add</button><br />
+    <button type="button" id="start-manualplay">Begin!</button>
+</div>
+<div class="playerpanel-codeplay">
+    Add new player <br />
+    <input type="text" id="newplayername-codeplay" placeholder="Name" /><button type="button" id="addnewplayer-codeplay">Add</button><br />
+    <textarea id="playercode" placeholder="Code"></textarea><br />
+    <button type="button" id="start-codeplay">Begin!</button>
+</div>
+<div class="manualplay-controlpanel">
+    <div class="buttonrow">
+        <button type="button" class="directionarrow" id="upleft">.</button>
+        <button type="button" class="directionarrow" id="up">.</button>
+        <button type="button" class="directionarrow" id="upright">.</button>
+    </div>
+    <div class="buttonrow">
+        <button type="button" class="directionarrow" id="middleleft">.</button>
+        <button type="button" class="directionarrow" id="middle">.</button>
+        <button type="button" class="directionarrow" id="middleright">.</button>
+    </div>
+    <div class="buttonrow">
+        <button type="button" class="directionarrow" id="downleft">.</button>
+        <button type="button" class="directionarrow" id="down">.</button>
+        <button type="button" class="directionarrow" id="downright">.</button>
+    </div>
+</div>
+<div class="statuspanel">
+    <textarea id="statustext"> </textarea>
+</div>
+<script>
+    var tr_x=800;
+    var tr_y=500;
+    var playFc;
+    var playtype='';
+
+    var tdraw = function(){
+        var au=10;
+        var players = [];
+        var fixtr = undefined;
+        var c = [];
+        var pcolors=['#822A8A','#A8A228','#00ff00','#c9ff00','#6688CC','#88CC66'];
+        var duration = +1000;
+
+        var drawPlayer=function(aplayer){
+            var ppoint = d3.select("#playerpoints")
+                .append("circle")
+                .attr("cx", aplayer.ppos.y*au)
+                .attr("cy", aplayer.ppos.x*au)
+                .attr("r", 5)
+                .style("fill", 'white')
+                .style("stroke", aplayer.color)
+                .style("stroke-width", '3');
+            return ppoint;
+        }
+
+        var drawLine=function(aplayer){
+            var pline = d3.select("#playerlines")
+                .append("line")
+                .attr("x1", aplayer.ppos.y*au)
+                .attr("y1", aplayer.ppos.x*au)
+                .attr("x2", aplayer.ppos.y*au)
+                .attr("y2", aplayer.ppos.x*au)
+                .style("fill", 'transparent')
+                .style("stroke", aplayer.color)
+                .style("stroke-width", '3');
+            return pline;
+        }
+
+        var drawCross=function(aplayer){
+            var pcross = d3.select("#playercrosses")
+                .append("g");
+            pcross.append("line")
+                .attr("x1", aplayer.ppos.y*au-au/4)
+                .attr("y1", aplayer.ppos.x*au-au/4)
+                .attr("x2", aplayer.ppos.y*au+au/4)
+                .attr("y2", aplayer.ppos.x*au+au/4)
+                .style("fill", 'transparent')
+                .style("stroke", aplayer.color)
+                .style("stroke-width", '2');
+            pcross.append("line")
+                .attr("x1", aplayer.ppos.y*au+au/4)
+                .attr("y1", aplayer.ppos.x*au-au/4)
+                .attr("x2", aplayer.ppos.y*au-au/4)
+                .attr("y2", aplayer.ppos.x*au+au/4)
+                .style("fill", 'transparent')
+                .style("stroke", aplayer.color)
+                .style("stroke-width", '2');
+            return pcross;
+        }
+
+        var drawNextMoves=function(aplayer){
+            var pnm = d3.select("#playernextmoves")
+                .append("g")
+                .attr("transform", "translate("+(aplayer.ppos.y)*au+", "+(aplayer.ppos.x)*au+")");
+            for(var i=-1; i<=1; i++)
+                for(var j=-1; j<=1; j++){
+                    pnm.append("circle")
+                        .attr("cx", (+i)*au)
+                        .attr("cy", (+j)*au)
+                        .attr("r", 4)
+                        .style("fill", aplayer.color)
+                        .style("opacity", '0.4')
+                        .style("stroke", 'transparent')
+                        .style("stroke-width", '0');
+                }
+            return pnm;
+        }
+
+        this.addPlayer=function(name, pos){
+            var player={name: name, ppos: pos, ppoint: undefined, lines:[], crosses:[], nextmovesigns:[], color: pcolors[players.length]}
+            player.ppoint = drawPlayer(player);
+            player.nextmovesigns = drawNextMoves(player);
+            players.push(player);
+        }
+
+        this.hightlightedPlayerIndex = -1;
+
+        this.highlightPlayer = function(pindex) {
+            this.deHighlightPlayer();
+            this.hightlightedPlayerIndex = pindex;
+            players[pindex].ppoint
+                .attr("r", 7)
+        }
+
+        this.deHighlightPlayer = function() {
+            if (this.hightlightedPlayerIndex < 0) {
+                return;
+            }
+            players[this.hightlightedPlayerIndex].ppoint
+                .attr("r", 5);
+            this.hightlightedPlayerIndex = -1;
+        }
+
+        this.movePlayer = function(pindex, dest, validmovement){
+            players[pindex].crosses.push(drawCross(players[pindex]));
+            players[pindex].ppoint.transition().duration(duration)
+                .attr("cx", dest.y*au)
+                .attr("cy", dest.x*au);
+            if(validmovement){
+                nextpos={y: dest.y+(dest.y-players[pindex].ppos.y), x: dest.x+(dest.x-players[pindex].ppos.x)};
+                players[pindex].nextmovesigns.transition().duration(duration)
+                    .attr("transform", "translate("+(nextpos.y)*au+", "+(nextpos.x)*au+")");
+                var newline=drawLine(players[pindex]);
+                newline.transition().duration(duration)
+                    .attr("x2", dest.y*au)
+                    .attr("y2", dest.x*au);
+                players[pindex].lines.push(newline);
+                players[pindex].ppos=dest;
+            }
+            else{
+                var newline=drawLine(players[pindex]);
+                newline.transition().duration(duration)
+                    .attr("x2", dest.y*au)
+                    .attr("y2", dest.x*au)
+                    .style("opacity","0.3");
+                players[pindex].nextmovesigns.transition().duration(duration)
+                    .style("opacity",0);
+            }
+        }
+
+        this.restorePlayer = function(pindex){
+            players[pindex].ppoint.transition().duration(duration)
+                .attr("cx", players[pindex].ppos.y*au)
+                .attr("cy", players[pindex].ppos.x*au);
+            if(players[pindex].crosses.length){
+                players[pindex].crosses.pop().transition().duration(duration)
+                    .style("opacity","0.3");
+            }
+            else{
+                console.log("Tried to remove non existing cross");
+            }
+            players[pindex].nextmovesigns.transition().duration(duration)
+                .attr("transform", "translate("+(players[pindex].ppos.y)*au+", "+(players[pindex].ppos.x)*au+")")
+                .style("opacity",1);
+        }
+
+        this.drawtrackbg=function(rtc){
+            c=rtc;
+            var lx=c.length;
+            var ly=c[0].length;
+            au=Math.floor(Math.min(tr_x/ly,tr_y/lx));
+            for(var i=1; i<lx; i++)
+                for(var j=1; j<ly; j++){
+                    if(c[i][j]<0 && c[i-1][j]<0 && c[i][j-1]<0 && c[i-1][j-1]<0){
+                        d3.select("#track")
+                            .append("rect")
+                            .attr("x", (j-1)*au)
+                            .attr("y", (i-1)*au)
+                            .attr("width", au)
+                            .attr("height", au)
+                            .style("fill", 'red')
+                            .style("stroke", 'gray')
+                            .style("stroke-width", '2');
+                    }
+                    else{
+                        d3.select("#track")
+                            .append("rect")
+                            .attr("x", (j-1)*au)
+                            .attr("y", (i-1)*au)
+                            .attr("width", au)
+                            .attr("height", au)
+                            .style("fill", 'lightgreen')
+                            .style("stroke", 'gray')
+                            .style("stroke-width", '2');
+                    }
+                }
+            for(var i=0; i<lx; i++)
+                for(var j=0; j<ly; j++){
+                    if(i>0 && c[i][j]<0 && c[i-1][j]<0){
+                        d3.select("#track")
+                            .append("line")
+                            .attr("x1", j*au)
+                            .attr("y1", i*au)
+                            .attr("x2", j*au)
+                            .attr("y2", (i-1)*au)
+                            .style("stroke", 'darkred')
+                            .style("stroke-width", '3');
+                    }
+                    if(j>0 && c[i][j]<0 && c[i][j-1]<0){
+                        d3.select("#track")
+                            .append("line")
+                            .attr("x1", j*au)
+                            .attr("y1", i*au)
+                            .attr("x2", (j-1)*au)
+                            .attr("y2", i*au)
+                            .style("stroke", 'darkred')
+                            .style("stroke-width", '3');
+                    }
+                }
+            for(var i=0; i<lx; i++)
+                for(var j=0; j<ly; j++)
+                    if(c[i][j]==100){
+                        d3.select("#track")
+                            .append("rect")
+                            .attr("x", (j-0.5)*au)
+                            .attr("y", (i-0.5)*au)
+                            .attr("width", au)
+                            .attr("height", au)
+                            .style("fill", ((i+j)%2?'black':'white'))
+                            .style("stroke", 'gray')
+                            .style("stroke-width", '2');
+                    }
+            for(var i=0; i<lx; i++)
+                for(var j=0; j<ly; j++) {
+                    if(c[i][j]==91){
+                        d3.select("#track")
+                            .append("rect")
+                            .attr("x", (j-0.5)*au)
+                            .attr("y", (i-0.5)*au)
+                            .attr("width", au)
+                            .attr("height", au)
+                            .style("fill", '#222222')
+                            .style("stroke", '#121212')
+                            .style("stroke-width", '2');
+                    }
+                    if(c[i][j]==92){
+                        d3.select("#track")
+                            .append("rect")
+                            .attr("x", (j-0.5)*au)
+                            .attr("y", (i-0.5)*au)
+                            .attr("width", au)
+                            .attr("height", au)
+                            .style("fill", '#F4A460')
+                            .style("stroke", '#A0522D')
+                            .style("stroke-width", '2');
+                    }
+                }
+        }
+    }
+
+    var lineCar=function(){
+        var court={c: undefined, start: [], end: [], laps: 1};
+        var players=[];
+        var trackd=new tdraw();
+        var delay = +1000;
+        var actplayer=0;
+
+        this.addPlayer=function(name, movefunc){
+            var startpos = court.start[Math.floor(Math.random()*court.start.length)];
+            while(occs({x: startpos.x, y: startpos.y})>=0)
+                startpos = court.start[Math.floor(Math.random()*court.start.length)];
+            var newplayer = {name: name, penalty: 0, oldpos: {x: startpos.x, y: startpos.y }, pos: {x: startpos.x, y: startpos.y}, stepno: 0, finished: false, mf: movefunc};
+            players.push(newplayer);
+            trackd.addPlayer(name, newplayer.pos);
+            console.log("Player added at position ("+startpos.x+","+startpos.y+")")
+        }
+
+        var move = function(playerindex, dx, dy){
+            var player=players[playerindex];
+            if((dx!=0 && Math.abs(dx)!=1) || (dy!=0 && Math.abs(dy)!=1)){
+                updateStatus(player.name + " banned for 5 rounds because of invalid value. ");
+                players[playerindex].penalty = 5;
+                players[playerindex].oldpos = players[playerindex].pos;
+                return false;
+            }
+            else{
+                var newpos={
+                    x: dx+player.pos.x+(player.pos.x-player.oldpos.x),
+                    y: dy+player.pos.y+(player.pos.y-player.oldpos.y)
+                };
+                if(vl(player.pos,newpos)){
+                    if(occs(newpos)<0 || occs(newpos)==playerindex){
+                        players[playerindex].oldpos=players[playerindex].pos;
+                        players[playerindex].pos=newpos;
+                        trackd.movePlayer(playerindex, newpos, true);
+                        return true;
+                    }
+                    else{
+                        updateStatus(player.name+" banned from 5 rounds because of a collision.");
+                        players[playerindex].penalty=5;
+                        players[playerindex].oldpos=players[playerindex].pos;
+                        trackd.movePlayer(playerindex, newpos, false);
+                        return false;
+                    }
+                }
+                else{
+                    updateStatus(player.name+" banned from 5 rounds because it left the track.");
+                    players[playerindex].penalty=5;
+                    players[playerindex].oldpos=players[playerindex].pos;
+                    trackd.movePlayer(playerindex, newpos, false);
+                    return false;
+                }
+            }
+        }
+
+        var restartMovement=function(playerindex){
+            trackd.restorePlayer(playerindex);
+        }
+
+        var generatePlayerData = function(){
+            ret = [];
+            for (var i=0; i<players.length; i++)
+                ret.push({oldpos: players[i].oldpos, pos: players[i].pos, penalty: players[i].penalty});
+            return ret;
+        }
+
+        /*var step = function(){
+            var finno=0;
+            for(var i=0; i<players.length; i++){
+                if(!players[i].finished){
+                    if(players[i].penalty>0){
+                        players[i].penalty--;
+                        if(players[i].penalty==0){
+                            restartMovement(i);
+                        }
+                    }
+                    else{
+                        var moddirect=players[i].mf.movefunction(court.c, generatePlayerData(), i);
+                        move(i,moddirect.x,moddirect.y);
+                        if(court.c[players[i].pos.x][players[i].pos.y]==100){
+                            players[i].stepno++;
+                            players[i].finished=true;
+                        }
+                        else
+                            players[i].stepno++;
+                    }
+                }
+                else{
+                    finno++;
+                }
+            }
+            if(finno==players.length){
+                clearInterval(playFc);
+            }
+        } */
+
+        var generateVisibleMap = function(actplayerIndex) {
+            var visibilityRadius = 15;
+            var selfX = players[actplayerIndex].pos.x;
+            var selfY = players[actplayerIndex].pos.y;
+            var mapM = court.c.length;
+            var mapN = court.c[0].length;
+            var visibleCourt = [];
+            for (var ii=0; ii < mapM; ii++) {
+                if (!visibleCourt[ii]) {
+                    visibleCourt[ii] = [];
+                }
+                for (var jj=0; jj < mapN; jj++) {
+                    var xDisSq = Math.pow(selfX - ii, 2);
+                    var yDisSq = Math.pow(selfY - jj, 2);
+                    if (Math.sqrt(xDisSq + yDisSq) <= visibilityRadius) {
+                        visibleCourt[ii][jj] = court.c[ii][jj];
+                    } else {
+                        visibleCourt[ii][jj] = undefined;
+                    }
+                }
+            }
+            return visibleCourt;
+        }
+
+        var randomOilMovement = function(activePosition, oldPosition) {
+            const newcenter = {
+                x: activePosition.x + (activePosition.x - oldPosition.x),
+                y: activePosition.y + (activePosition.y - oldPosition.y)
+            };
+            const centerDistance = Math.sqrt((newcenter.x - activePosition.x) * (newcenter.x - activePosition.x) + (newcenter.y - activePosition.y) * (newcenter.y - activePosition.y));
+            const possiblePoints = [];
+            for (let i = -1; i <= 1; i++)
+                for (let j = -1; j <= 1; j++)
+                    possiblePoints.push({
+                        points: {
+                            x: newcenter.x + i,
+                            y: newcenter.y + j
+                        },
+                        directions: {
+                            dx: i,
+                            dy: j
+                        },
+                        distance: Math.abs(
+                            Math.sqrt((newcenter.x + i - activePosition.x) * (newcenter.x + i - activePosition.x) +
+                                (newcenter.y + j - activePosition.y) * (newcenter.y + j - activePosition.y)) -
+                            centerDistance)
+                    });
+            let randomIndex = Math.floor(Math.random() * 3);
+            const inOrder = possiblePoints.sort((a, b) => {
+                return a.distance < b.distance ? -1 : a.distance > b.distance ? 1 : 0;
+            });
+            console.log(inOrder)
+            return inOrder[randomIndex].directions;
+        }
+
+        var randomSandMovement = function(activePosition, oldPosition) {
+            const newcenter = {
+                x: activePosition.x + (activePosition.x - oldPosition.x),
+                y: activePosition.y + (activePosition.y - oldPosition.y)
+            };
+            const possiblePoints = [];
+            for (let i = -1; i <= 1; i++)
+                for (let j = -1; j <= 1; j++)
+                    possiblePoints.push({
+                        points: {
+                            x: newcenter.x + i,
+                            y: newcenter.y + j
+                        },
+                        directions: {
+                            dx: i,
+                            dy: j
+                        },
+                        distance: (newcenter.x + i - activePosition.x) * (newcenter.x + i - activePosition.x) + (newcenter.y + j - activePosition.y) * (newcenter.y + j - activePosition.y)
+                    });
+            let randomIndex = Math.floor(Math.random() * 3);
+            const inOrder = possiblePoints.sort((a, b) => {
+                return a.distance < b.distance ? -1 : a.distance > b.distance ? 1 : 0;
+            });
+            console.log(inOrder)
+            return inOrder[randomIndex].directions;
+        }
+
+        var codestep = function(){
+            var playerindex = actplayer;
+            try {
+                var moddirect = players[playerindex].mf.movefunction(generateVisibleMap(playerindex), generatePlayerData(), playerindex);
+                if (court.c[players[playerindex].pos.x][players[playerindex].pos.y] == 91 && speed(playerindex) > 0.1) {
+                    // oil movement
+                    const om = randomOilMovement(players[playerindex].pos, players[playerindex].oldpos);
+                    move(playerindex, om.dx, om.dy);
+                } else if (court.c[players[playerindex].pos.x][players[playerindex].pos.y] == 92 && speed(playerindex) > 0.1) {
+                    // sand movement
+                    const om = randomSandMovement(players[playerindex].pos, players[playerindex].oldpos);
+                    move(playerindex, om.dx, om.dy);
+                } else {
+                    move(playerindex,moddirect.x,moddirect.y);
+                }
+            } catch (e) {
+                console.log(e);
+                move(playerindex, 0, 0);
+                updateStatus(players[playerindex].name + " did not respond right in time, moves forward.");
+            }
+            if(court.c[players[playerindex].pos.x][players[playerindex].pos.y]==100){
+                players[playerindex].stepno++;
+                players[playerindex].finished=true;
+                updateStatus(players[playerindex].name+" reached the goal in " + players[playerindex].stepno + " steps!");
+            }
+            else
+                players[playerindex].stepno++;
+            if(!everybodyFinished()){
+                nextPlayer();
+                playFc=setTimeout(codestep, 1200);
+
+            }
+            else{
+                updateStatus("End of the race.");
+            }
+        }
+
+        /*
+        var play=function(){
+            playFc=setTimeout(codestep, 1200);
+        }*/
+
+        this.startcodeplay=function(){
+            var pd=generatePlayerData();
+            for(var i=0; i<players.length; i++)
+                players[i].mf.init(generateVisibleMap(i), pd, i);
+            actplayer=0;
+            updateStatus("The first player is " + players[0].name + ".");
+            trackd.highlightPlayer(actplayer);
+            codestep();
+        }
+
+        this.startmanulaplay=function(){
+            actplayer = 0;
+            trackd.highlightPlayer(actplayer);
+            manualplay();
+        }
+
+        var updateStatus = function(newtext){
+            $('#statustext').val(newtext+"\n"+$('#statustext').val());
+        }
+
+        var everybodyFinished = function(){
+            for(var i=0; i<players.length; i++){
+                if(!players[i].finished)
+                    return false;
+            }
+            return true;
+        }
+
+        var nextPlayer = function(){
+            if(++actplayer>=players.length)
+                actplayer=0;
+            if(players[actplayer].penalty>0){
+                players[actplayer].stepno++;
+                if(--(players[actplayer].penalty)==0){
+                    updateStatus(players[actplayer].name+"'s ban ends now, it can continue in the next round.");
+                    restartMovement(actplayer);
+                }
+                else{
+                    updateStatus(players[actplayer].name + " is banned for " + players[actplayer].penalty + " steps.");
+                }
+                return nextPlayer();
+            }
+            if (players[actplayer].finished) {
+                return nextPlayer();
+            }
+            updateStatus("The next player is " + players[actplayer].name + ".");
+            setTimeout(() => trackd.highlightPlayer(actplayer), delay);
+        }
+
+        function speed(playerindex) {
+            var xdiv = players[playerindex].pos.x - players[playerindex].oldpos.x;
+            var ydiv = players[playerindex].pos.y - players[playerindex].oldpos.y;
+            return Math.sqrt(xdiv * xdiv + ydiv * ydiv);
+        }
+
+        var manualstep = function(playerindex,dx,dy){
+            if (court.c[players[playerindex].pos.x][players[playerindex].pos.y] == 91 && speed(playerindex) > 0.1) {
+                // oil movement
+                const om = randomOilMovement(players[playerindex].pos, players[playerindex].oldpos);
+                move(playerindex, om.dx, om.dy);
+                console.log(om);
+
+            } else if (court.c[players[playerindex].pos.x][players[playerindex].pos.y] == 92 && speed(playerindex) > 0.1) {
+                // sand movement
+                const om = randomSandMovement(players[playerindex].pos, players[playerindex].oldpos);
+                move(playerindex, om.dx, om.dy);
+                console.log(om);
+
+            } else {
+                move(playerindex, dx, dy);
+            }
+            if(court.c[players[playerindex].pos.x][players[playerindex].pos.y]==100){
+                players[playerindex].stepno++;
+                players[playerindex].finished=true;
+                updateStatus(players[playerindex].name+" reached the goal in "+players[playerindex].stepno+" steps!");
+            }
+            else
+                players[playerindex].stepno++;
+            if (!everybodyFinished())
+                nextPlayer();
+            else {
+                updateStatus("Il fino.");
+                $('#upleft').unbind('click');
+                $('#up').unbind('click');
+                $('#upright').unbind('click');
+                $('#middleleft').unbind('click');
+                $('#middle').unbind('click');
+                $('#middleright').unbind('click');
+                $('#downleft').unbind('click');
+                $('#down').unbind('click');
+                $('#downright').unbind('click');
+            }
+        }
+
+        var manualplay=function(){
+            updateStatus("The first player is "+players[0].name+".");
+            $('#upleft').click(function(){
+                manualstep(actplayer,-1,-1);
+            });
+            $('#up').click(function(){
+                manualstep(actplayer,-1,0);
+            });
+            $('#upright').click(function(){
+                manualstep(actplayer,-1,1);
+            });
+            $('#middleleft').click(function(){
+                manualstep(actplayer,0,-1);
+            });
+            $('#middle').click(function(){
+                manualstep(actplayer,0,0);
+            });
+            $('#middleright').click(function(){
+                manualstep(actplayer,0,1);
+            });
+            $('#downleft').click(function(){
+                manualstep(actplayer,1,-1);
+            });
+            $('#down').click(function(){
+                manualstep(actplayer,1,0);
+            });
+            $('#downright').click(function(){
+                manualstep(actplayer,1,1);
+            });
+        }
+
+        var consolelogCourt = function(){
+            console.log(court);
+        }
+
+        var importTra=function(imagename){
+            var imwith, imheight;
+            var img=$('<img />', {src: imagename })
+                .load(function (){
+                    imwith=this.width;
+                    imheight=this.height;
+                    var imc=$('<canvas/>');
+                    imc.width=imwith; img.height=imheight;
+                    imc[0].getContext('2d').drawImage(this, 0, 0, imwith, imheight);
+                    court.c =[];
+                    for (var j=0; j<imheight; j++){
+                        court.c.push([]);
+                        for (var i=0; i<imwith; i++){
+                            var px = imc[0].getContext('2d').getImageData(i,j,1,1).data;
+                            switch(px.join(',')){
+                                case '255,0,0,255':
+                                    court.c[j].push(-1);
+                                    break;
+                                case '255,255,255,255':
+                                    court.c[j].push(0);
+                                    break;
+                                case '0,255,0,255':
+                                    court.c[j].push(1);
+                                    court.start.push({x: j, y: i});
+                                    break;
+                                case '0,0,0,255':
+                                    court.c[j].push(91);
+                                    break;
+                                case '255,255,0,255':
+                                    court.c[j].push(92);
+                                    break;
+                                case '0,0,255,255':
+                                    court.c[j].push(100);
+                                    court.end.push({x: j, y: i});
+                                    break;
+                                default:
+                                    court.c[j].push(-1);
+                                    break;
+                            }
+                        }
+                    }
+                    trackd.drawtrackbg(court.c);
+                });
+
+
+        }
+
+        var minimalTra=function(){
+            court.c=[[-1, -1, -1, -1, -1, -1, -1, -1],
+                [-1, 1, 0, 0, 2, -1, -1, -1],
+                [-1, 1, -1, 0, 2, -1, -1, -1],
+                [-1, 1, -1, 0, 2, 0, 100, -1],
+                [-1, -1, -1, -1, -1, -1, -1 -1]];
+            court.start=[{x: 1, y: 1},{x: 2, y: 1},{x: 3, y: 1}];
+            court.end=[{x: 3, y: 6}];
+            court.laps=1;
+            trackd.drawtrackbg(court.c);
+        }
+
+        this.loadLevel = function(ln){
+            importTra(levels[ln].imname);
+        }
+
+        var vl=function(p1,p2){ //valid line
+            var dx=p2.x-p1.x;
+            var dy=p2.y-p1.y;
+            if(Math.abs(dx)>0){
+                var d=dy/dx;
+                for(var i=0; i<=Math.abs(dx); i++){
+                    var tx=p1.x+i*Math.sign(dx);
+                    var tyf=Math.floor(p1.y+i*d*Math.sign(dx));
+                    var tyc=Math.ceil(p1.y+i*d*Math.sign(dx));
+                    if(court.c[tx][tyf]<0 && court.c[tx][tyc]<0){
+                        return false;
+                    }
+                }
+            }
+            if(Math.abs(dy)>0){
+                var d=dx/dy;
+                for(var i=0; i<=Math.abs(dy); i++){
+                    var ty=p1.y+i*Math.sign(dy);
+                    var txf=Math.floor(p1.x+i*d*Math.sign(dy));
+                    var txc=Math.ceil(p1.x+i*d*Math.sign(dy));
+                    if(court.c[txf][ty]<0 && court.c[txc][ty]<0){
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        var vvl = function(privateCourt, p1, p2){ //valid line
+            // return vl(p1, p2);
+            /*
+            var tMap = "";
+            for (var ii=0; ii < mapM; ii++) {
+                var row = "\n";
+                for (var jj=0; jj < mapN; jj++) {
+                    if (typeof privateCourt[ii][jj] === "undefined") {
+                        row += " ";
+                    }
+                    if (privateCourt[ii][jj] < 0) {
+                        row += "-"
+                    }
+                    if (privateCourt[ii][jj] >= 0) {
+                        row += "O"
+                    }
+                }
+                tMap += row;
+            }
+            console.log(tMap);
+            */
+            var dx = p2.x-p1.x;
+            var dy = p2.y-p1.y;
+            if(Math.abs(dx)>0){
+                var d=dy/dx;
+                for(var i=0; i <= Math.abs(dx); i++){
+                    var tx = p1.x+i*Math.sign(dx);
+                    var tyf = Math.floor(p1.y + i*d*Math.sign(dx));
+                    var tyc = Math.ceil(p1.y + i*d*Math.sign(dx));
+                    var leftInvalid = typeof privateCourt[tx][tyf] === "undefined" || privateCourt[tx][tyf] < 0;
+                    var rightInvalid = typeof privateCourt[tx][tyc] === "undefined" || privateCourt[tx][tyc] < 0;
+                    if (leftInvalid && rightInvalid){
+                        return false;
+                    }
+                }
+            }
+            if(Math.abs(dy)>0){
+                var d = dx/dy;
+                for(var i=0; i <= Math.abs(dy); i++){
+                    var ty = p1.y+i*Math.sign(dy);
+                    var txf = Math.floor(p1.x + i*d*Math.sign(dy));
+                    var txc = Math.ceil(p1.x + i*d*Math.sign(dy));
+                    var leftInvalid = typeof privateCourt[txf][ty] === "undefined" || privateCourt[txf][ty] < 0;
+                    var rightInvalid = typeof privateCourt[txc][ty] === "undefined" || privateCourt[txc][ty] < 0;
+                    if (leftInvalid && rightInvalid){
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        var ep = function(p1,p2){
+            return(p1.x==p2.x && p1.y==p2.y)
+        }
+
+        var occs = function(p1){
+            for(var i=0; i<players.length; i++){
+                if(players[i].pos.x==p1.x && players[i].pos.y==p1.y)
+                    return i;
+            }
+            return -1;
+        }
+
+        var voccs = function(privateCourt, p1){
+            if (typeof privateCourt[p1.x][p1.y] === "undefined") {
+                return 0;
+            }
+            for(var i=0; i<players.length; i++){
+                if(players[i].pos.x==p1.x && players[i].pos.y==p1.y)
+                    return i;
+            }
+            return -1;
+        }
+
+        this.equalPoints = function(p1,p2){
+            return ep(p1,p2);
+        }
+
+        this.validVisibleLine = function(privateCourt, p1, p2){
+            return vvl(privateCourt, p1, p2);
+        }
+
+        /*
+        this.validLine = function(p1, p2){
+            return vl(p1, p2);
+        }*/
+
+        this.visiblePlayerAt = function(privateCourt, p1){
+            return voccs(privateCourt, p1);
+        }
+
+        /*
+        this.playerAt = function(p1){
+            return occs(p1);
+        }
+        */
+    }
+
+    var levels={
+        kispalya: {
+            imname: 'kispalya.bmp'
+        },
+        kispalya_olajos: {
+            imname: 'kispalya_olajos_homokos.bmp'
+        },
+        kispalya2: {
+            imname: 'kispalya2.bmp'
+        },
+        nagypalya1: {
+            imname: 'nagypalya1.bmp'
+        },
+        nagypalya2: {
+            imname: 'nagypalya2.bmp'
+        },
+        nagypalya2_olajos: {
+            imname: 'nagypalya2_olajos_homokos.bmp'
+        },
+        egyenespalya: {
+            imname: 'egyenespalya.bmp'
+        },
+        silverstone_olajos: {
+            imname: 'silverstone_olajos_homokos.bmp'
+        },
+        hungaroring_olajos: {
+            imname: 'hungaroring_olajos_homokos.bmp'
+        },
+        diosforgepatony_olajos: {
+            imname: 'diosforgepatony_olajos_homokos_re.bmp'
+        },
+        kina_olajos: {
+            imname: 'kina_olajos_homokos.bmp'
+        }
+    };
+
+    var levelSelection = function(){
+        for(lvl in levels){
+            var aktkep=$("<img>",{src: levels[lvl].imname, class: "trackicon", "data-lvl": lvl}).appendTo($('.level-select'));
+            aktkep.click(function(){
+                lc.loadLevel($(this).attr("data-lvl"));
+                console.log("loading level " + $(this).attr("data-lvl"));
+                $('.level-select').hide("slow");
+                $('.mode-select').show("slow");
+            });
+        }
+    }
+
+    // var this is an example, a random  = function(){
+    var randomClass = function(){
+        var sajatdata = undefined;
+
+        this.init = function(c, playerdata, selfindex){
+            console.log('hello, world');
+            // here an initialization might take place;
+        }
+
+        this.movefunction = function(c, playerdata, selfindex){
+            var self = playerdata[selfindex]; // read the info for the actual player
+            var newcenter = { // thats how the center of the next movement can be computed
+                x: self.pos.x + (self.pos.x - self.oldpos.x),
+                y: self.pos.y + (self.pos.y - self.oldpos.y)
+            };
+            var nextmove = newcenter;
+            // the variable nextmove is initialized as the center point
+            // if it is valid, we stay there with a high probability
+            if (!lc.equalPoints(newcenter,self.pos) && lc.validVisibleLine(c, self.pos, newcenter) && lc.visiblePlayerAt(c, newcenter) < 0 && Math.random() > 0.1)
+                return {x: 0, y: 0}; // with returning 0,0, the next movement will be the center
+            else {
+                var validmoves = [];
+                var validstay = null;
+                // we try the possible movements
+                for(var i=-1; i<=1; i++)
+                    for(var j=-1; j<=1; j++){
+                        nextmove={x: newcenter.x+i, y: newcenter.y+j};
+                        // if the movement is valid (the whole line has to be valid)
+                        if(lc.validVisibleLine(c, self.pos, nextmove) && (lc.visiblePlayerAt(c, nextmove)<0 || lc.visiblePlayerAt(c, nextmove)==selfindex))
+                            if(!lc.equalPoints(nextmove,self.pos)) // if there is no one else
+                                validmoves.push({x: i, y: j}); // we store the movement as a valid movement
+                            else
+                                validstay = {x: i, y: j}; // the next movement is me
+                    }
+                if (validmoves.length) {
+                    // if there is a valid movement, try to step there, if it not equal with my actual position
+                    return validmoves[Math.floor(Math.random()*validmoves.length)];
+                }
+                else{
+                    // if the only one movement is equal to my actual position, we rather stay there
+                    if(validstay){
+                        return validstay;
+                    }
+                }
+                return {x: 0, y: 0}; // if there is no valid movement, then close our eyes....
+            }
+        }
+    }
+
+    $(function () {
+        lc = new lineCar();
+        levelSelection();
+
+        $('#select-manualplay').click(function () {
+            $('.playerpanel-manualplay').show("slow");
+            $('.mode-select').hide("slow");
+        });
+
+        $('#select-codeplay').click(function () {
+            //$('.playerpanel-codeplay').show("slow");
+            $('.mode-select').hide("slow");
+        });
+
+        $('#addnewplayer-manualplay').click(function () {
+            if ($('#newplayername-manualplay').val() != "") {
+                lc.addPlayer($('#newplayername-manualplay').val(), null);
+                $('#newplayername-manualplay').val("");
+            }
+        });
+
+        $('#start-manualplay').click(function () {
+            $('.manualplay-controlpanel').show("slow");
+            $('.statuspanel').show("slow");
+            $('.playerpanel-manualplay').hide("slow");
+            lc.startmanulaplay();
+        });
+
+        $('#select-codeplay').click(function () {
+            //$('.playerpanel-codeplay').show("slow");
+            $('.mode-select').hide("slow");
+            $('#addnewplayer-codeplay').click();
+        });
+
+        $('#addnewplayer-codeplay').click(function () {
+            //if ($('#newplayername-codeplay').val() != "" && $('#playercode').val() != "") {
+            var actfug = eval(V7Z3T5);
+            if (actfug != null) {
+                try {
+                    lc.addPlayer("Bence", new actfug);
+                    $('#newplayername-codeplay').val("");
+                    $('#playercode').val("");
+
+
+                } catch (err) {
+                    alert("Hiba történt a kód értelmezése során!");
+                }
+            } else {
+                alert("Hiba történt a kód értelmezése során!");
+            }
+            $('#start-codeplay').click();
+            /*} else {
+                alert("Valamelyik adat hiányzik.");
+            }*/
+        });
+
+        $('#start-codeplay').click(function () {
+            $('.statuspanel').show("slow");
+            //$('.playerpanel-codeplay').hide("slow");
+            lc.startcodeplay();
+        });
+
+    });
+
+</script>
+</body>
+</html>
