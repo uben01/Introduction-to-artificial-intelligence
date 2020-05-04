@@ -665,7 +665,7 @@ var V7Z3T5 = function () {
                         continue;
 
                     if (lc.validVisibleLine(tMap, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() ||
-                        (lc.playerAt(nextMove) < 0 || lc.playerAt(nextMove) === selfindex))) {
+                        (lc.visiblePlayerAt(tMap, nextMove) < 0 || lc.visiblePlayerAt(tMap, nextMove) === selfindex))) {
                         distance = map.distance(startingNode.getCenter(), nextMove);
 
                         let node = new Node();
