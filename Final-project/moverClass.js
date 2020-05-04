@@ -1,9 +1,3 @@
-/**
- * TODO: Reconsider EndNode (EN later)
- * When an EN is found calculate probability of the later spots being wall
- * Classify these next nodes to ?HI-ME-LO? wall probability
- * Instead of weights we can show on the map, the classes
- */
 
 /**
  * @typedef Coordinate
@@ -21,6 +15,18 @@
  */
 var V7Z3T5 = function () {
     // HELPER CLASSES
+
+    /**
+     * Enumeration to describe different spots
+     * @type {{SAND: number, OIL: number, START: number, BLOCKER: number, FINISH: number}}
+     */
+    const Types = {
+        BLOCKER: -1,
+        START: 1,
+        OIL: 91,
+        SAND: 92,
+        FINISH: 100
+    };
 
     /**
      * These nodes contains the information of various steps.
@@ -140,20 +146,9 @@ var V7Z3T5 = function () {
          * @param t {number} - The initial (and constant) T value of the spot
          */
         function Spot(t) {
-            /**
-             * Describes the probability of one Spot being wall when undefined
-             * @enum {number}
-             * @readonly
-             */
-            const Prob = {
-                LO: 0,
-                HI: 1,
-                NONE: -1
-            };
 
             this._v = undefined;
             this._t = t;
-            this._prob = Prob.NONE;
 
             /**
              * Returns with the type of the spot
@@ -170,19 +165,11 @@ var V7Z3T5 = function () {
                 return this._v;
             }
             /**
-             * Returns with the probability class of the spot
-             * @returns {Prob}
-             */
-            this.getProb = function(){
-                return this._prob;
-            }
-            /**
-             * Sets the type of the spot (use in case the initialization couldn't set it), and resets its probability
+             * Sets the type of the spot (use in case the initialization couldn't set it)
              * @param t {number}
              */
             this.setT = function (t) {
                 this._t = t;
-                this._prob = Prob.NONE;
             }
             /**
              * Sets the heuristic value of the
@@ -191,16 +178,8 @@ var V7Z3T5 = function () {
             this.setV = function (v) {
                 this._v = v;
             }
-            /**
-             * Sets the probability class of the spot
-             * @param prob
-             */
-            this.setProb = function (prob) {
-                this._prob = prob;
-            }
         }
 
-        const _finishPositionValue = 100;
         const _blockerPenalty = 1000;
 
         let _sizeX, _sizeY, _matrix;
@@ -253,7 +232,7 @@ var V7Z3T5 = function () {
             }
             for (let i = 0; i < _sizeX; i++) {
                 for (let j = 0; j < _sizeY; j++)
-                    if (_matrix[i][j].getT() >= 0)
+                    if (_matrix[i][j].getT() > Types.BLOCKER)
                         _matrix[i][j].setV(Number.POSITIVE_INFINITY);
             }
 
@@ -267,20 +246,20 @@ var V7Z3T5 = function () {
                 for (let i = 0; i < newNodes.length; i++) {
                     let mElement = _matrix[newNodes[i].x][newNodes[i].y];
 
-                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
+                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() > Types.BLOCKER && !_aMargins.includes(act)) {
                         _aMargins.push(act);
-                    } else if (mElement.getT() >= 0) {
+                    } else if (mElement.getT() > Types.BLOCKER) {
                         newNodes[i].cost = act.cost + 1;
                         if (!isMemberWithLEValue(prQueue, newNodes[i]) &&
                             !isInMatrixWithLEValue(newNodes[i])) {
-                            if (mElement.getT() === _finishPositionValue) {
+                            if (mElement.getT() === Types.FINISH) {
                                 newNodes[i].cost = 0;
                             }
 
                             mElement.setV(newNodes[i].cost);
                             prQueue.push(newNodes[i]);
                         }
-                    } else if (mElement.getT() < 0) {
+                    } else if (mElement.getT() <= Types.BLOCKER) {
                         _matrix[newNodes[i].x][newNodes[i].y].setV(_blockerPenalty);
                     }
                 }
@@ -315,10 +294,10 @@ var V7Z3T5 = function () {
                 for (let i = 0; i < newNodes.length; i++) {
                     let mElement = _matrix[newNodes[i].x][newNodes[i].y];
 
-                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() >= 0 && !_aMargins.includes(act)) {
+                    if (isUndefined(mElement.getT()) && _matrix[act.x][act.y].getT() > Types.BLOCKER && !_aMargins.includes(act)) {
                         _aMargins.push(act);
-                    } else if (mElement.getT() >= 0) {
-                        if (mElement.getT() === _finishPositionValue) {
+                    } else if (mElement.getT() > Types.BLOCKER) {
+                        if (mElement.getT() === Types.FINISH) {
                             newNodes[i].cost = Number.POSITIVE_INFINITY;
                         } else {
                             newNodes[i].cost = act.cost + 1;
@@ -328,7 +307,7 @@ var V7Z3T5 = function () {
                             prQueue.push(newNodes[i]);
 
                             mElement.setV(newNodes[i].cost);
-                            if (mElement.getT() === _finishPositionValue && !_aFinishes.includes(_aMargins[i])) {
+                            if (mElement.getT() === Types.FINISH && !_aFinishes.includes(_aMargins[i])) {
                                 _aFinishes.push(newNodes[i]);
                             }
                         }
@@ -354,13 +333,13 @@ var V7Z3T5 = function () {
                         continue;
                     }
 
-                    if (mElement.getT() >= 0) {
+                    if (mElement.getT() > Types.BLOCKER) {
                         newNodes[j].cost = _aMargins[i].cost + 1;
 
                         if (isUndefined(mElement.getV()) || mElement.getV() > newNodes[j].cost) {
                             if (!isMemberWithLEValue(_aMargins, newNodes[j]) &&
                                 !isInMatrixWithLEValue(newNodes[j])) {
-                                if (mElement.getT() === _finishPositionValue) {
+                                if (mElement.getT() === Types.FINISH) {
                                     newNodes[j].cost = (reinitialized ? 0 : Number.POSITIVE_INFINITY);
                                     if (!_aFinishes.includes(newNodes[j])) {
                                         _aFinishes.push(newNodes[j]);
@@ -371,7 +350,7 @@ var V7Z3T5 = function () {
                                 mElement.setV(newNodes[j].cost);
                             }
                         }
-                    } else if (mElement.getT() < 0) {
+                    } else if (mElement.getT() <= Types.BLOCKER) {
                         mElement.setV(_blockerPenalty);
                     }
                 }
@@ -436,7 +415,7 @@ var V7Z3T5 = function () {
          * @returns {boolean}
          */
         this.isFinish = function (node) {
-            return _matrix[node.getCenter().x][node.getCenter().y].getT() === _finishPositionValue;
+            return _matrix[node.getCenter().x][node.getCenter().y].getT() === Types.FINISH;
         };
 
         /**
@@ -573,12 +552,21 @@ var V7Z3T5 = function () {
      * @param {Coordinate} nowVelocity
      * @param {Node[]} validNodes
      */
-    let initializeStartingPoint = function(nowCenter, nowVelocity, validNodes){
+    let initializeStartingPoint = function (nowCenter, nowVelocity, validNodes) {
         let node = new Node();
         node.initialize(nowCenter, null, 0);
         node.setVelocity(nowVelocity);
         validNodes.push(node);
     };
+
+    /**
+     *
+     * @param a {Coordinate}
+     * @param b {Coordinate}
+     */
+    let euclideanDistance = function (a, b) {
+        return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+    }
 
     // API FUNCTIONS
     /**
@@ -654,16 +642,27 @@ var V7Z3T5 = function () {
             index = 0;
             let distance = null;
 
+            let possibleMoves = [];
             for (let i = -1; i <= 1; i++) {
                 for (let j = -1; j <= 1; j++) {
-                    const nextMove = {
+                    possibleMoves.push({
                         x: startingNode.getCenter().x + (startingNode.getVelocity().x + i),
                         y: startingNode.getCenter().y + (startingNode.getVelocity().y + j)
-                    };
+                    });
+                }
+            }
+            if(nowVelocity.x !== 0 || nowVelocity.y !== 0) {
+                let startingT = tMap[startingNode.getCenter().x][startingNode.getCenter().y];
+                if (startingT === Types.OIL) {
+                    possibleMoves = possibleMoves.sort(euclideanDistance).splice(3, 3);
+                } else if (startingT === Types.SAND) {
+                    possibleMoves = possibleMoves.sort(euclideanDistance).splice(0, 3);
+                }
+            }
 
-                    if (lc.equalPoints(self.oldpos, self.pos) && lc.equalPoints(self.pos, nextMove))
-                        continue;
 
+            possibleMoves.forEach(function (nextMove) {
+                if (!lc.equalPoints(self.oldpos, self.pos) || !lc.equalPoints(self.pos, nextMove)) {
                     if (lc.validVisibleLine(tMap, startingNode.getCenter(), nextMove) && (startingNode.getFirstNode() ||
                         (lc.visiblePlayerAt(tMap, nextMove) < 0 || lc.visiblePlayerAt(tMap, nextMove) === selfindex))) {
                         distance = map.distance(startingNode.getCenter(), nextMove);
@@ -689,7 +688,8 @@ var V7Z3T5 = function () {
                         }
                     }
                 }
-            }
+            });
+
             sortList(validNodes, !isFinishNodeFound);
             if (!reinitializedNow && (!reinitialized ? (validNodes[0].getH() < 1) : validNodes[0].getH() > -1)) {
                 map.reInitialize(self.pos);
